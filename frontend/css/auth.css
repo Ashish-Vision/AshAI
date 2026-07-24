@@ -1831,3 +1831,657 @@ img{
         animation-duration: 1.2s;
     }
 }
+/* =========================================================
+   RESET PASSWORD PAGE
+========================================================= */
+
+.reset-password-card {
+    max-width: 470px;
+}
+
+.reset-password-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    width: 64px;
+    height: 64px;
+    margin: 0 auto 20px;
+
+    color: #5282ff;
+
+    background:
+        linear-gradient(
+            145deg,
+            rgba(54, 108, 255, 0.18),
+            rgba(92, 68, 255, 0.1)
+        );
+
+    border: 1px solid rgba(91, 126, 255, 0.34);
+    border-radius: 20px;
+
+    box-shadow:
+        0 14px 32px rgba(31, 68, 172, 0.16);
+}
+
+.reset-password-card .auth-card-header {
+    text-align: center;
+}
+
+.password-strength {
+    margin-top: -4px;
+}
+
+.password-strength-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+
+    margin-bottom: 8px;
+
+    color: var(--text-secondary, #aeb7c9);
+
+    font-size: 0.78rem;
+    font-weight: 500;
+}
+
+#strengthLabel {
+    font-weight: 600;
+}
+
+.strength-track {
+    width: 100%;
+    height: 6px;
+
+    overflow: hidden;
+
+    background: rgba(130, 145, 177, 0.16);
+
+    border-radius: 999px;
+}
+
+.strength-bar {
+    display: block;
+
+    width: 0;
+    height: 100%;
+
+    border-radius: inherit;
+
+    transition:
+        width 220ms ease,
+        background-color 220ms ease;
+}
+
+.strength-bar.weak {
+    width: 33.333%;
+    background: #fb7185;
+}
+
+.strength-bar.medium {
+    width: 66.666%;
+    background: #fbbf24;
+}
+
+.strength-bar.strong {
+    width: 100%;
+    background: #4ade80;
+}
+
+.password-requirements {
+    padding: 16px 17px;
+
+    background: rgba(28, 38, 61, 0.48);
+
+    border: 1px solid rgba(125, 143, 180, 0.16);
+    border-radius: 12px;
+}
+
+.requirements-title {
+    margin: 0 0 11px;
+
+    color: #f5f7fb;
+
+    font-size: 0.82rem;
+    font-weight: 600;
+}
+
+.password-requirements ul {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 9px 14px;
+
+    margin: 0;
+    padding: 0;
+
+    list-style: none;
+}
+
+.password-requirements li {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+
+    color: var(--text-secondary, #aeb7c9);
+
+    font-size: 0.76rem;
+    line-height: 1.4;
+
+    transition: color 180ms ease;
+}
+
+.requirement-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+
+    flex: 0 0 auto;
+
+    width: 17px;
+    height: 17px;
+
+    color: #71809f;
+
+    font-size: 0.75rem;
+    font-weight: 700;
+
+    border: 1px solid rgba(126, 146, 190, 0.32);
+    border-radius: 50%;
+
+    transition:
+        color 180ms ease,
+        border-color 180ms ease,
+        background-color 180ms ease;
+}
+
+.password-requirements li.completed {
+    color: #72df9d;
+}
+
+.password-requirements li.completed .requirement-icon {
+    color: #052d1a;
+
+    background: #4ade80;
+    border-color: #4ade80;
+}
+
+.password-match-message {
+    min-height: 18px;
+    margin: 6px 0 0;
+
+    font-size: 0.78rem;
+    line-height: 1.4;
+}
+
+.password-match-message.success {
+    color: #4ade80;
+}
+
+.password-match-message.error {
+    color: #fb7185;
+}
+
+#resetPasswordButton {
+    min-height: 52px;
+}
+
+.reset-back-link a::before {
+    content: "← ";
+}
+
+/* =========================================================
+   PASSWORD RESET SUCCESS VIEW
+========================================================= */
+
+.password-success-view {
+    width: 100%;
+    text-align: center;
+}
+
+.password-success-view[hidden],
+#resetPasswordView[hidden] {
+    display: none;
+}
+
+.password-success-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+
+    width: 72px;
+    height: 72px;
+    margin-bottom: 23px;
+
+    color: #4ade80;
+
+    background:
+        linear-gradient(
+            145deg,
+            rgba(34, 197, 94, 0.16),
+            rgba(16, 185, 129, 0.08)
+        );
+
+    border: 1px solid rgba(74, 222, 128, 0.3);
+    border-radius: 50%;
+
+    box-shadow:
+        0 16px 36px rgba(18, 105, 59, 0.17);
+}
+
+.password-success-view .auth-card-label {
+    display: block;
+    margin-bottom: 10px;
+}
+
+.password-success-view h2 {
+    margin: 0;
+
+    color: var(--text-primary, #f7f8fc);
+
+    font-size: clamp(1.65rem, 4vw, 2rem);
+    font-weight: 700;
+    line-height: 1.25;
+}
+
+.password-success-view p {
+    max-width: 390px;
+    margin: 18px auto 28px;
+
+    color: var(--text-secondary, #aeb7c9);
+
+    font-size: 0.92rem;
+    line-height: 1.65;
+}
+
+.success-login-button {
+    display: flex;
+
+    color: #ffffff;
+    text-decoration: none;
+}
+
+/* =========================================================
+   RESPONSIVE RESET PASSWORD PAGE
+========================================================= */
+
+@media (max-width: 520px) {
+    .password-requirements ul {
+        grid-template-columns: 1fr;
+    }
+
+    .reset-password-icon {
+        width: 58px;
+        height: 58px;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .strength-bar,
+    .password-requirements li,
+    .requirement-icon {
+        transition: none;
+    }
+}
+.test-reset-link {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+
+    width: 100%;
+    min-height: 48px;
+    margin-top: 18px;
+    padding: 12px 18px;
+
+    color: #ffffff;
+    font-size: 0.88rem;
+    font-weight: 600;
+    text-decoration: none;
+
+    background: linear-gradient(
+        135deg,
+        #3267f5,
+        #5547ef
+    );
+
+    border-radius: 10px;
+
+    transition:
+        transform 180ms ease,
+        box-shadow 180ms ease;
+}
+
+.test-reset-link:hover {
+    transform: translateY(-1px);
+
+    box-shadow:
+        0 10px 24px rgba(59, 86, 246, 0.24);
+}
+
+.test-reset-link:focus-visible {
+    outline: 3px solid rgba(75, 117, 255, 0.35);
+    outline-offset: 3px;
+}
+/* =========================================================
+   SIGNUP PAGE
+========================================================= */
+
+.signup-card {
+    max-width: 510px;
+    padding: 34px 38px;
+}
+
+.signup-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    width: 62px;
+    height: 62px;
+    margin: 0 auto 18px;
+
+    color: #5282ff;
+
+    background:
+        linear-gradient(
+            145deg,
+            rgba(54, 108, 255, 0.18),
+            rgba(92, 68, 255, 0.1)
+        );
+
+    border: 1px solid rgba(91, 126, 255, 0.34);
+    border-radius: 20px;
+
+    box-shadow:
+        0 14px 32px rgba(31, 68, 172, 0.16);
+}
+
+.signup-card .auth-card-header {
+    text-align: center;
+}
+
+.signup-terms {
+    margin-top: -2px;
+}
+
+.terms-option {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+
+    color: var(--text-secondary, #aeb7c9);
+
+    font-size: 0.79rem;
+    line-height: 1.55;
+
+    cursor: pointer;
+}
+
+.terms-option input {
+    position: absolute;
+
+    width: 1px;
+    height: 1px;
+
+    overflow: hidden;
+    opacity: 0;
+    pointer-events: none;
+}
+
+.terms-checkbox {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+
+    flex: 0 0 auto;
+
+    width: 19px;
+    height: 19px;
+    margin-top: 1px;
+
+    color: transparent;
+
+    background: rgba(39, 50, 75, 0.65);
+
+    border: 1px solid rgba(134, 150, 185, 0.3);
+    border-radius: 5px;
+
+    transition:
+        color 180ms ease,
+        border-color 180ms ease,
+        background-color 180ms ease,
+        box-shadow 180ms ease;
+}
+
+.terms-option input:checked + .terms-checkbox {
+    color: #ffffff;
+
+    background: #416ff4;
+    border-color: #416ff4;
+}
+
+.terms-option input:focus-visible + .terms-checkbox {
+    outline: 3px solid rgba(75, 117, 255, 0.35);
+    outline-offset: 3px;
+}
+
+.terms-option a {
+    color: #4f8cff;
+    font-weight: 500;
+    text-decoration: none;
+}
+
+.terms-option a:hover {
+    text-decoration: underline;
+}
+
+#signupButton {
+    min-height: 52px;
+}
+
+#signupStrengthLabel.weak {
+    color: #fb7185;
+}
+
+#signupStrengthLabel.medium {
+    color: #fbbf24;
+}
+
+#signupStrengthLabel.strong {
+    color: #4ade80;
+}
+
+/* =========================================================
+   SIGNUP SUCCESS VIEW
+========================================================= */
+
+.signup-success-view {
+    width: 100%;
+    text-align: center;
+}
+
+.signup-success-view[hidden],
+#signupView[hidden] {
+    display: none;
+}
+
+.signup-success-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+
+    width: 72px;
+    height: 72px;
+    margin-bottom: 23px;
+
+    color: #5282ff;
+
+    background:
+        linear-gradient(
+            145deg,
+            rgba(54, 108, 255, 0.18),
+            rgba(92, 68, 255, 0.1)
+        );
+
+    border: 1px solid rgba(91, 126, 255, 0.34);
+    border-radius: 22px;
+
+    box-shadow:
+        0 16px 36px rgba(31, 68, 172, 0.18);
+}
+
+.signup-success-view .auth-card-label {
+    display: block;
+    margin-bottom: 10px;
+}
+
+.signup-success-view h2 {
+    margin: 0;
+
+    color: var(--text-primary, #f7f8fc);
+
+    font-size: clamp(1.7rem, 4vw, 2.1rem);
+    font-weight: 700;
+    line-height: 1.2;
+}
+
+.signup-success-view .success-description {
+    margin: 18px 0 7px;
+}
+
+.signup-success-view .success-instructions {
+    margin-bottom: 26px;
+}
+
+@media (max-width: 520px) {
+    .signup-card {
+        max-width: 100%;
+    }
+
+    .signup-icon {
+        width: 56px;
+        height: 56px;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .terms-checkbox {
+        transition: none;
+    }
+}
+/* Compact spacing for the signup form only */
+.signup-card .auth-form {
+    gap: 1rem;
+}
+
+.signup-card .form-group {
+    gap: 0.45rem;
+}
+
+.signup-card .password-strength {
+    margin-top: -0.15rem;
+}
+
+.signup-card .password-requirements {
+    padding: 12px 14px;
+}
+
+.signup-card .password-requirements ul {
+    gap: 7px 12px;
+}
+
+.signup-card .signup-terms {
+    margin-top: 0;
+}
+/* =========================================================
+   VERIFY EMAIL PAGE
+========================================================= */
+
+.verify-email-card {
+    max-width: 460px;
+    text-align: center;
+}
+
+.verification-state[hidden] {
+    display: none;
+}
+
+.verification-state h2 {
+    margin: 10px 0 0;
+
+    color: var(--text-primary, #f7f8fc);
+
+    font-size: clamp(1.7rem, 4vw, 2.05rem);
+    font-weight: 700;
+    line-height: 1.25;
+}
+
+.verification-state > p {
+    max-width: 380px;
+    margin: 18px auto 28px;
+
+    color: var(--text-secondary, #aeb7c9);
+
+    font-size: 0.92rem;
+    line-height: 1.65;
+}
+
+.verification-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+
+    width: 74px;
+    height: 74px;
+    margin-bottom: 22px;
+
+    border-radius: 50%;
+}
+
+.verification-icon.success {
+    color: #4ade80;
+
+    background: rgba(34, 197, 94, 0.12);
+    border: 1px solid rgba(74, 222, 128, 0.3);
+
+    box-shadow:
+        0 16px 36px rgba(18, 105, 59, 0.17);
+}
+
+.verification-icon.error {
+    color: #fb7185;
+
+    background: rgba(244, 63, 94, 0.1);
+    border: 1px solid rgba(251, 113, 133, 0.3);
+
+    box-shadow:
+        0 16px 36px rgba(130, 31, 54, 0.16);
+}
+
+.verification-loader {
+    width: 64px;
+    height: 64px;
+    margin: 0 auto 24px;
+
+    border: 4px solid rgba(105, 128, 181, 0.2);
+    border-top-color: #4f7cff;
+    border-radius: 50%;
+
+    animation: auth-spin 800ms linear infinite;
+}
+
+.verification-action {
+    display: flex;
+
+    color: #ffffff;
+    text-decoration: none;
+}
+
+#resendVerificationButton {
+    min-height: 52px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .verification-loader {
+        animation-duration: 1.4s;
+    }
+}
