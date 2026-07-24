@@ -2,6 +2,7 @@
 
 const mobileMenuButton = document.getElementById("mobileMenuButton");
 const navigationMenu = document.getElementById("navigationMenu");
+const currentYearElement = document.getElementById("currentYear");
 const navigationLinks = document.querySelectorAll(".navigation-link");
 
 function toggleMobileMenu() {
@@ -31,3 +32,6 @@ window.addEventListener("resize", () => {
         closeMobileMenu();
     }
 });
+if (currentYearElement) {
+    currentYearElement.textContent = new Date().getFullYear();
+}
