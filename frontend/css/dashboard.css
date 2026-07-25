@@ -485,6 +485,27 @@ a {
     font-size: 0.68rem;
 }
 
+.sidebar-logout-button {
+    width: 100%;
+    margin-top: 4px;
+    color: #f08a9b;
+    background: transparent;
+    text-align: left;
+    cursor: pointer;
+}
+
+.sidebar-logout-button:hover {
+    color: #fecdd3;
+    background: rgba(244, 63, 94, 0.1);
+}
+
+.recent-chats-empty {
+    margin: 4px 10px;
+    color: #68758c;
+    font-size: 0.75rem;
+    line-height: 1.5;
+}
+
 .sidebar-overlay {
     display: none;
 }

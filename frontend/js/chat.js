@@ -1032,6 +1032,14 @@ document.addEventListener("DOMContentLoaded", () => {
             historyContainer.innerHTML = "";
             if (heading) historyContainer.appendChild(heading);
 
+            if (!summaries.length) {
+                const emptyState = document.createElement("p");
+                emptyState.className = "recent-chats-empty";
+                emptyState.textContent = "No recent chats yet";
+                historyContainer.appendChild(emptyState);
+                return;
+            }
+
             summaries.forEach((item) => {
                 const row = document.createElement("div");
                 row.className = "recent-chat-row";
@@ -1244,6 +1252,7 @@ document.addEventListener("DOMContentLoaded", () => {
             pendingAttachment = {
                 name: file.name || (isImage ? "camera-photo.jpg" : "attachment.txt"),
                 mimeType: mimeType === "text/xml" ? "application/xml" : mimeType,
+                size: file.size,
                 data: dataUrl.slice(dataUrl.indexOf(",") + 1)
             };
             showAttachmentStatus(`${pendingAttachment.name} ready`);
@@ -1657,11 +1666,15 @@ document.addEventListener("DOMContentLoaded", () => {
         profileButton.setAttribute("aria-expanded", String(Boolean(willOpen)));
     });
 
-    document.getElementById("dashboardLogoutButton")?.addEventListener("click", () => {
+    const logoutToHome = () => {
         localStorage.removeItem("ashai_access_token");
         sessionStorage.removeItem("ashai_access_token");
-        window.location.replace("./login.html");
-    });
+        localStorage.removeItem(pinnedChatsKey);
+        window.location.replace("../index.html");
+    };
+
+    document.getElementById("dashboardLogoutButton")?.addEventListener("click", logoutToHome);
+    document.getElementById("sidebarLogoutButton")?.addEventListener("click", logoutToHome);
 
     document.getElementById("planDetailsButton")?.addEventListener("click", () => {
         closeHeaderPopovers();
@@ -1740,35 +1753,48 @@ document.addEventListener("DOMContentLoaded", () => {
     const filesLink = document.getElementById("filesSidebarLink");
     filesLink?.addEventListener("click", (e) => {
         e.preventDefault();
+        const attachmentList = pendingAttachment
+            ? `
+                <li style="padding:12px; background:var(--bg-main, #0f172a); border-radius:8px; display:flex; gap:12px; justify-content:space-between; align-items:center;">
+                    <div style="min-width:0;">
+                        <strong style="display:block; overflow:hidden; font-size:14px; text-overflow:ellipsis; white-space:nowrap;">${escapeHtml(pendingAttachment.name)}</strong>
+                        <div style="font-size:12px; opacity:0.6;">${escapeHtml(pendingAttachment.mimeType)} • ${Math.max(1, Math.ceil(pendingAttachment.size / 1024))} KB</div>
+                    </div>
+                    <button type="button" id="removeWorkspaceAttachment" style="flex:0 0 auto; color:#fb7185; background:#fb71851a; border:none; padding:6px 9px; border-radius:6px; font-weight:600; cursor:pointer;">Remove</button>
+                </li>
+            `
+            : `
+                <li style="padding:28px 16px; text-align:center; border:1px dashed var(--border-color, #334155); border-radius:10px;">
+                    <strong style="display:block; margin-bottom:6px;">No files attached</strong>
+                    <span style="font-size:13px; opacity:.65;">Choose a file to attach it to your next message.</span>
+                </li>
+            `;
+
         createInteractiveModal("Workspace Files & Attachments", `
-            <p style="margin-top:0; opacity:0.8; font-size:14px;">Manage uploaded files, documents, and code attachments in your AshAI workspace.</p>
+            <p style="margin-top:0; opacity:0.8; font-size:14px;">Manage the file attached to your next AshAI message.</p>
             <div style="border:2px dashed var(--border-color, #334155); border-radius:12px; padding:32px; text-align:center; margin-bottom:20px;">
                 <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-bottom:8px; opacity:0.7;"><path d="M21.4 11.6l-8.9 8.9a6 6 0 0 1-8.5-8.5l9.6-9.6a4 4 0 0 1 5.7 5.7l-9.6 9.6a2 2 0 1 1-2.8-2.8l8.9-8.9"></path></svg>
                 <p style="margin:0 0 12px 0; font-weight:600;">Upload new document or code file</p>
                 <button type="button" id="modalUploadBtn" style="background:linear-gradient(135deg, #6366f1, #4f46e5); color:#fff; border:none; padding:8px 18px; border-radius:8px; font-weight:600; cursor:pointer;">Choose File</button>
             </div>
-            <h4 style="margin:0 0 12px 0; font-size:15px;">Workspace Attachments</h4>
+            <h4 style="margin:0 0 12px 0; font-size:15px;">Current Attachment</h4>
             <ul style="list-style:none; padding:0; margin:0;">
-                <li style="padding:12px; background:var(--bg-main, #0f172a); border-radius:8px; margin-bottom:8px; display:flex; justify-content:space-between; align-items:center;">
-                    <div>
-                        <strong style="font-size:14px;">architecture.md</strong>
-                        <div style="font-size:12px; opacity:0.6;">Markdown Document • System Design</div>
-                    </div>
-                    <span style="font-size:12px; background:#10b98122; color:#10b981; padding:4px 8px; border-radius:4px; font-weight:600;">Active</span>
-                </li>
-                <li style="padding:12px; background:var(--bg-main, #0f172a); border-radius:8px; margin-bottom:8px; display:flex; justify-content:space-between; align-items:center;">
-                    <div>
-                        <strong style="font-size:14px;">api-design.md</strong>
-                        <div style="font-size:12px; opacity:0.6;">API Specification • Backend Routes</div>
-                    </div>
-                    <span style="font-size:12px; background:#10b98122; color:#10b981; padding:4px 8px; border-radius:4px; font-weight:600;">Active</span>
-                </li>
+                ${attachmentList}
             </ul>
         `);
 
         document.getElementById("modalUploadBtn")?.addEventListener("click", () => {
             fileAttachInput?.click();
             document.getElementById("ashaiInteractiveModal")?.remove();
+        });
+
+        document.getElementById("removeWorkspaceAttachment")?.addEventListener("click", () => {
+            pendingAttachment = null;
+            if (fileAttachInput) fileAttachInput.value = "";
+            if (cameraCaptureInput) cameraCaptureInput.value = "";
+            showAttachmentStatus("");
+            document.getElementById("ashaiInteractiveModal")?.remove();
+            filesLink.click();
         });
     });
 
