@@ -1,5 +1,12 @@
 "use strict";
 
+const ASHAI_BACKEND_ORIGIN =
+    window.ASHAI_API_ORIGIN ||
+    (["localhost", "127.0.0.1"].includes(window.location.hostname)
+        ? `http://${window.location.hostname}:8080`
+        : window.location.origin);
+const ASHAI_API_BASE_URL = `${ASHAI_BACKEND_ORIGIN}/api`;
+
 document.addEventListener("DOMContentLoaded", () => {
     const getAccessToken = () => {
         return (
@@ -554,6 +561,26 @@ document.addEventListener("DOMContentLoaded", () => {
                 copyButton
             );
 
+            const saveButton =
+                document.createElement("button");
+
+            saveButton.type = "button";
+            saveButton.className =
+                "message-action-button save-response-button";
+            saveButton.setAttribute(
+                "aria-label",
+                "Save AshAI response"
+            );
+            saveButton.innerHTML = `
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none"
+                    stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                    stroke-linejoin="round" aria-hidden="true">
+                    <path d="M6 3h12a1 1 0 0 1 1 1v17l-7-4-7 4V4a1 1 0 0 1 1-1z"></path>
+                </svg>
+                <span>Save</span>
+            `;
+            actions.appendChild(saveButton);
+
             content.appendChild(
                 actions
             );
@@ -695,7 +722,7 @@ document.addEventListener("DOMContentLoaded", () => {
             const modelSelectorBtn = document.querySelector(".model-selector");
             const selectedModel = modelSelectorBtn ? modelSelectorBtn.textContent.trim() : "AshAI Standard";
 
-            const res = await fetch("http://localhost:8080/api/chat", {
+            const res = await fetch(`${ASHAI_API_BASE_URL}/chat`, {
                 method: "POST",
                 headers,
                 body: JSON.stringify({
@@ -719,7 +746,7 @@ document.addEventListener("DOMContentLoaded", () => {
             }
         } catch (err) {
             console.warn("Could not connect to backend AI server, using client fallback:", err);
-            responseText = `## AshAI Assistant Response\n\nI received your query: **"${userPrompt}"**.\n\nAshAI is currently running in local workspace mode. Make sure the backend Spring Boot app is running at \`http://localhost:8080\`.`;
+            responseText = "AshAI could not reach the AI service. Check your connection and try again.";
         }
 
         if (!isGenerating) {
@@ -940,6 +967,27 @@ document.addEventListener("DOMContentLoaded", () => {
     =========================================================
     */
 
+    const pinnedChatsKey = "ashai_pinned_conversations";
+
+    const getPinnedChats = () => {
+        try {
+            const stored = JSON.parse(
+                localStorage.getItem(pinnedChatsKey) || "[]"
+            );
+            return new Set(Array.isArray(stored) ? stored : []);
+        } catch {
+            localStorage.removeItem(pinnedChatsKey);
+            return new Set();
+        }
+    };
+
+    const savePinnedChats = (pinnedChats) => {
+        localStorage.setItem(
+            pinnedChatsKey,
+            JSON.stringify([...pinnedChats])
+        );
+    };
+
     const loadRecentChats = async () => {
         const historyContainer = document.getElementById("chatHistory");
         if (!historyContainer) return;
@@ -948,12 +996,29 @@ document.addEventListener("DOMContentLoaded", () => {
             const token = localStorage.getItem("ashai_access_token") || sessionStorage.getItem("ashai_access_token");
             if (!token) return;
 
-            const res = await fetch("http://localhost:8080/api/chat/history", {
+            const res = await fetch(`${ASHAI_API_BASE_URL}/chat/history`, {
                 headers: { "Authorization": `Bearer ${token}` }
             });
 
             if (!res.ok) return;
             const summaries = await res.json();
+            const pinnedChats = getPinnedChats();
+            const validConversationIds = new Set(
+                summaries.map((item) => item.conversationId)
+            );
+
+            [...pinnedChats].forEach((conversationId) => {
+                if (!validConversationIds.has(conversationId)) {
+                    pinnedChats.delete(conversationId);
+                }
+            });
+            savePinnedChats(pinnedChats);
+
+            summaries.sort((first, second) => {
+                const firstPinned = pinnedChats.has(first.conversationId);
+                const secondPinned = pinnedChats.has(second.conversationId);
+                return Number(secondPinned) - Number(firstPinned);
+            });
 
             // Clear static placeholders except section heading
             const heading = historyContainer.querySelector(".sidebar-section-heading");
@@ -961,6 +1026,9 @@ document.addEventListener("DOMContentLoaded", () => {
             if (heading) historyContainer.appendChild(heading);
 
             summaries.forEach((item) => {
+                const row = document.createElement("div");
+                row.className = "recent-chat-row";
+
                 const btn = document.createElement("button");
                 btn.type = "button";
                 btn.className = `recent-chat-item ${item.conversationId === window.activeConversationId ? "active" : ""}`;
@@ -970,10 +1038,40 @@ document.addEventListener("DOMContentLoaded", () => {
                             <path d="M21 15a4 4 0 0 1-4 4H8l-5 3V7a4 4 0 0 1 4-4h10a4 4 0 0 1 4 4z"></path>
                         </svg>
                     </span>
-                    <span class="recent-chat-text">${item.title || "Chat"}</span>
+                    <span class="recent-chat-text">${escapeHtml(item.title || "Chat")}</span>
                 `;
                 btn.addEventListener("click", () => loadConversation(item.conversationId));
-                historyContainer.appendChild(btn);
+
+                const pinButton = document.createElement("button");
+                const isPinned = pinnedChats.has(item.conversationId);
+                pinButton.type = "button";
+                pinButton.className = `recent-chat-pin ${isPinned ? "is-pinned" : ""}`;
+                pinButton.setAttribute(
+                    "aria-label",
+                    `${isPinned ? "Unpin" : "Pin"} ${item.title || "conversation"}`
+                );
+                pinButton.title = isPinned ? "Unpin conversation" : "Pin conversation";
+                pinButton.innerHTML = `
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                        stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                        <path d="M12 17v5"></path>
+                        <path d="M5 17h14"></path>
+                        <path d="M7 3h10l-1 8 3 3H5l3-3-1-8z"></path>
+                    </svg>
+                `;
+                pinButton.addEventListener("click", () => {
+                    const currentPins = getPinnedChats();
+                    if (currentPins.has(item.conversationId)) {
+                        currentPins.delete(item.conversationId);
+                    } else {
+                        currentPins.add(item.conversationId);
+                    }
+                    savePinnedChats(currentPins);
+                    loadRecentChats();
+                });
+
+                row.append(btn, pinButton);
+                historyContainer.appendChild(row);
             });
         } catch (e) {
             console.warn("Could not load recent chats:", e);
@@ -987,14 +1085,18 @@ document.addEventListener("DOMContentLoaded", () => {
 
         if (conversationArea) {
             conversationArea.remove();
+            conversationArea = null;
         }
         const area = createConversationArea();
 
         try {
             const token = localStorage.getItem("ashai_access_token") || sessionStorage.getItem("ashai_access_token");
-            const res = await fetch(`http://localhost:8080/api/chat/history/${conversationId}`, {
+            const res = await fetch(
+                `${ASHAI_API_BASE_URL}/chat/history/${encodeURIComponent(conversationId)}`,
+                {
                 headers: { "Authorization": `Bearer ${token}` }
-            });
+                }
+            );
 
             if (res.ok) {
                 const messages = await res.json();
@@ -1092,6 +1194,8 @@ document.addEventListener("DOMContentLoaded", () => {
 
     const attachFileBtn = document.getElementById("attachFileBtn");
     const fileAttachInput = document.getElementById("fileAttachInput");
+    const attachmentStatus = document.getElementById("attachmentStatus");
+    const MAX_ATTACHMENT_BYTES = 15_000;
 
     if (attachFileBtn && fileAttachInput) {
         attachFileBtn.addEventListener("click", () => {
@@ -1102,13 +1206,33 @@ document.addEventListener("DOMContentLoaded", () => {
             const file = e.target.files[0];
             if (!file) return;
 
+            if (file.size > MAX_ATTACHMENT_BYTES) {
+                if (attachmentStatus) {
+                    attachmentStatus.textContent = "File must be under 15 KB";
+                    attachmentStatus.classList.add("is-error");
+                }
+                fileAttachInput.value = "";
+                return;
+            }
+
             const reader = new FileReader();
             reader.onload = (event) => {
                 const content = event.target.result;
                 promptInput.value += `\n\n[Attached File: ${file.name}]\n\`\`\`\n${content}\n\`\`\`\n`;
+                if (attachmentStatus) {
+                    attachmentStatus.textContent = file.name;
+                    attachmentStatus.classList.remove("is-error");
+                }
                 resizeTextarea();
                 updateSendButton();
                 promptInput.focus();
+            };
+            reader.onerror = () => {
+                if (attachmentStatus) {
+                    attachmentStatus.textContent = "Could not read file";
+                    attachmentStatus.classList.add("is-error");
+                }
+                fileAttachInput.value = "";
             };
             reader.readAsText(file);
         });
@@ -1123,19 +1247,37 @@ document.addEventListener("DOMContentLoaded", () => {
     const loadUserProfile = async () => {
         const userNameEl = document.getElementById("sidebarUserName");
         const userAvatarEl = document.getElementById("sidebarUserAvatar");
+        const headerNameEl = document.getElementById("headerProfileName");
+        const headerAvatarEl = document.getElementById("headerProfileAvatar");
+        const menuNameEl = document.getElementById("menuProfileName");
+        const menuEmailEl = document.getElementById("menuProfileEmail");
+        const menuAvatarEl = document.getElementById("menuProfileAvatar");
 
         try {
             const token = localStorage.getItem("ashai_access_token") || sessionStorage.getItem("ashai_access_token");
             if (!token) return;
 
-            const res = await fetch("http://localhost:8080/api/profile", {
+            const res = await fetch(`${ASHAI_API_BASE_URL}/profile`, {
                 headers: { "Authorization": `Bearer ${token}` }
             });
 
             if (res.ok) {
                 const user = await res.json();
-                if (userNameEl) userNameEl.textContent = user.fullName || "User Account";
-                if (userAvatarEl) userAvatarEl.textContent = (user.fullName || "A").charAt(0).toUpperCase();
+                const displayName = user.fullName || "User Account";
+                const initials = displayName
+                    .split(/\s+/)
+                    .filter(Boolean)
+                    .slice(0, 2)
+                    .map((part) => part.charAt(0).toUpperCase())
+                    .join("") || "A";
+
+                if (userNameEl) userNameEl.textContent = displayName;
+                if (userAvatarEl) userAvatarEl.textContent = initials;
+                if (headerNameEl) headerNameEl.textContent = displayName.split(/\s+/)[0];
+                if (headerAvatarEl) headerAvatarEl.textContent = initials;
+                if (menuNameEl) menuNameEl.textContent = displayName;
+                if (menuEmailEl) menuEmailEl.textContent = user.email || "AshAI account";
+                if (menuAvatarEl) menuAvatarEl.textContent = initials;
             }
         } catch (err) {
             console.warn("Could not load sidebar profile:", err);
@@ -1226,6 +1368,51 @@ document.addEventListener("DOMContentLoaded", () => {
                     );
                 }
 
+                return;
+            }
+
+            const saveButton =
+                target.closest(".save-response-button");
+
+            if (saveButton) {
+                const message = saveButton.closest(".chat-message");
+                if (
+                    message?.classList.contains("is-typing") ||
+                    message?.classList.contains("is-streaming")
+                ) {
+                    return;
+                }
+
+                const responseText = message
+                    ?.querySelector(".chat-message-content > p")
+                    ?.textContent.trim();
+                if (!responseText) return;
+
+                saveButton.disabled = true;
+                const label = saveButton.querySelector("span");
+                if (label) label.textContent = "Saving…";
+
+                try {
+                    const response = await fetch(`${ASHAI_API_BASE_URL}/saved`, {
+                        method: "POST",
+                        headers: {
+                            "Authorization": `Bearer ${getAccessToken()}`,
+                            "Content-Type": "application/json"
+                        },
+                        body: JSON.stringify({
+                            content: responseText,
+                            conversationId: window.activeConversationId || null
+                        })
+                    });
+                    if (!response.ok) throw new Error("Unable to save this response.");
+                    saveButton.classList.add("copied");
+                    saveButton.setAttribute("aria-label", "Response saved");
+                    if (label) label.textContent = "Saved";
+                } catch (error) {
+                    saveButton.disabled = false;
+                    if (label) label.textContent = "Save";
+                    console.error("Unable to save response:", error);
+                }
                 return;
             }
 
@@ -1354,6 +1541,169 @@ document.addEventListener("DOMContentLoaded", () => {
         modal.addEventListener("click", (e) => { if (e.target === modal) modal.remove(); });
     };
 
+    /*
+    =========================================================
+    HEADER SEARCH, NOTIFICATIONS & ACCOUNT MENU
+    =========================================================
+    */
+
+    const escapeHtml = (value) => String(value ?? "")
+        .replaceAll("&", "&amp;")
+        .replaceAll("<", "&lt;")
+        .replaceAll(">", "&gt;")
+        .replaceAll('"', "&quot;")
+        .replaceAll("'", "&#039;");
+
+    const searchButton = document.getElementById("dashboardSearchButton");
+    const notificationButton = document.getElementById("notificationButton");
+    const notificationPopover = document.getElementById("notificationPopover");
+    const notificationList = document.getElementById("notificationList");
+    const profileButton = document.getElementById("headerProfileButton");
+    const profilePopover = document.getElementById("profilePopover");
+    const notificationStorageKey = "ashai_notifications_read";
+
+    const closeHeaderPopovers = (except = null) => {
+        [
+            [notificationPopover, notificationButton],
+            [profilePopover, profileButton]
+        ].forEach(([popover, button]) => {
+            if (!popover || popover === except) return;
+            popover.hidden = true;
+            button?.setAttribute("aria-expanded", "false");
+        });
+    };
+
+    const notifications = [
+        {
+            title: "Gemini is connected",
+            message: "AshAI is using the latest Gemini Flash model."
+        },
+        {
+            title: "Social login is ready",
+            message: "Google and GitHub authentication are configured."
+        },
+        {
+            title: "Welcome to your workspace",
+            message: "Your conversations are saved automatically."
+        }
+    ];
+
+    const renderNotifications = () => {
+        if (!notificationList) return;
+        const allRead = localStorage.getItem(notificationStorageKey) === "true";
+        notificationList.innerHTML = notifications.map((item) => `
+            <div class="notification-item ${allRead ? "read" : ""}">
+                <span class="notification-item-dot" aria-hidden="true"></span>
+                <div>
+                    <strong>${escapeHtml(item.title)}</strong>
+                    <span>${escapeHtml(item.message)}</span>
+                </div>
+            </div>
+        `).join("");
+        document.querySelector(".notification-dot")?.toggleAttribute("hidden", allRead);
+    };
+
+    notificationButton?.addEventListener("click", (event) => {
+        event.stopPropagation();
+        const willOpen = notificationPopover?.hidden;
+        closeHeaderPopovers(notificationPopover);
+        if (notificationPopover) notificationPopover.hidden = !willOpen;
+        notificationButton.setAttribute("aria-expanded", String(Boolean(willOpen)));
+    });
+
+    document.getElementById("markNotificationsRead")?.addEventListener("click", () => {
+        localStorage.setItem(notificationStorageKey, "true");
+        renderNotifications();
+    });
+
+    profileButton?.addEventListener("click", (event) => {
+        event.stopPropagation();
+        const willOpen = profilePopover?.hidden;
+        closeHeaderPopovers(profilePopover);
+        if (profilePopover) profilePopover.hidden = !willOpen;
+        profileButton.setAttribute("aria-expanded", String(Boolean(willOpen)));
+    });
+
+    document.getElementById("dashboardLogoutButton")?.addEventListener("click", () => {
+        localStorage.removeItem("ashai_access_token");
+        sessionStorage.removeItem("ashai_access_token");
+        window.location.replace("./login.html");
+    });
+
+    document.getElementById("planDetailsButton")?.addEventListener("click", () => {
+        closeHeaderPopovers();
+        createInteractiveModal("AshAI Free Plan", `
+            <div style="display:grid; gap:16px;">
+                <div style="padding:18px; border:1px solid var(--border-color, #334155); border-radius:12px; background:var(--bg-main, #0f172a);">
+                    <strong style="display:block; margin-bottom:7px;">Free Plan</strong>
+                    <span style="font-size:13px; opacity:.75; line-height:1.6;">Local workspace access, conversation history, profile preferences, file attachments and Gemini-powered chat are enabled.</span>
+                </div>
+                <p style="margin:0; font-size:13px; opacity:.7;">Paid billing and subscription management are not configured for this local development build.</p>
+            </div>
+        `);
+    });
+
+    searchButton?.addEventListener("click", async () => {
+        closeHeaderPopovers();
+        createInteractiveModal("Search conversations", `
+            <label for="conversationSearchInput" style="display:block; margin-bottom:8px; font-size:13px; font-weight:700;">Search by conversation title</label>
+            <input id="conversationSearchInput" type="search" placeholder="Type to search…" autocomplete="off"
+                style="width:100%; padding:12px 14px; color:inherit; background:var(--bg-main, #0f172a); border:1px solid var(--border-color, #334155); border-radius:9px; outline:none;">
+            <div id="conversationSearchResults" style="display:grid; gap:8px; margin-top:16px;"><span style="opacity:.7;">Loading conversations…</span></div>
+        `);
+
+        const input = document.getElementById("conversationSearchInput");
+        const results = document.getElementById("conversationSearchResults");
+        input?.focus();
+
+        try {
+            const response = await fetch(`${ASHAI_API_BASE_URL}/chat/history`, {
+                headers: { Authorization: `Bearer ${getAccessToken()}` }
+            });
+            if (!response.ok) throw new Error("Unable to load conversations.");
+            const conversations = await response.json();
+
+            const drawResults = (query = "") => {
+                const normalized = query.trim().toLowerCase();
+                const matches = conversations.filter((item) =>
+                    (item.title || "").toLowerCase().includes(normalized)
+                );
+                if (!results) return;
+                results.innerHTML = matches.length
+                    ? matches.map((item) => `
+                        <button type="button" class="conversation-search-result" data-conversation-id="${escapeHtml(item.conversationId)}"
+                            style="padding:12px; text-align:left; color:inherit; background:var(--bg-main, #0f172a); border:1px solid var(--border-color, #334155); border-radius:9px; cursor:pointer;">
+                            <strong>${escapeHtml(item.title || "Untitled conversation")}</strong>
+                        </button>
+                    `).join("")
+                    : `<span style="opacity:.7;">No matching conversations.</span>`;
+            };
+
+            drawResults();
+            input?.addEventListener("input", () => drawResults(input.value));
+            results?.addEventListener("click", (event) => {
+                const result = event.target.closest(".conversation-search-result");
+                if (!result) return;
+                loadConversation(result.dataset.conversationId);
+                document.getElementById("ashaiInteractiveModal")?.remove();
+            });
+        } catch (error) {
+            if (results) results.innerHTML = `<span style="color:#fb7185;">${escapeHtml(error.message)}</span>`;
+        }
+    });
+
+    document.addEventListener("click", (event) => {
+        if (!event.target.closest(".dashboard-header-actions")) {
+            closeHeaderPopovers();
+        }
+    });
+
+    document.addEventListener("keydown", (event) => {
+        if (event.key === "Escape") closeHeaderPopovers();
+    });
+
+    renderNotifications();
+
     const filesLink = document.getElementById("filesSidebarLink");
     filesLink?.addEventListener("click", (e) => {
         e.preventDefault();
@@ -1390,45 +1740,91 @@ document.addEventListener("DOMContentLoaded", () => {
     });
 
     const savedLink = document.getElementById("savedSidebarLink");
-    savedLink?.addEventListener("click", (e) => {
+    savedLink?.addEventListener("click", async (e) => {
         e.preventDefault();
         createInteractiveModal("Saved Items & Code Snippets", `
             <p style="margin-top:0; opacity:0.8; font-size:14px;">Your saved AI responses, code blocks, and bookmarked notes.</p>
-            <div style="display:flex; flex-direction:column; gap:12px;">
-                <div style="padding:16px; background:var(--bg-main, #0f172a); border-radius:12px; border:1px solid var(--border-color, #334155);">
-                    <div style="display:flex; justify-content:space-between; margin-bottom:8px;">
-                        <span style="font-size:12px; font-weight:700; color:#6366f1;">JAVA COMPONENT</span>
-                        <span style="font-size:12px; opacity:0.6;">Saved today</span>
-                    </div>
-                    <pre style="margin:0; font-family:monospace; font-size:13px; background:rgba(0,0,0,0.3); padding:10px; border-radius:6px;">public class SecurityConfig { ... }</pre>
-                </div>
-                <div style="padding:16px; background:var(--bg-main, #0f172a); border-radius:12px; border:1px solid var(--border-color, #334155);">
-                    <div style="display:flex; justify-content:space-between; margin-bottom:8px;">
-                        <span style="font-size:12px; font-weight:700; color:#10b981;">AI SUMMARY</span>
-                        <span style="font-size:12px; opacity:0.6;">Saved today</span>
-                    </div>
-                    <p style="margin:0; font-size:13px; opacity:0.9;">System Architecture: Decoupled Spring Boot REST API & Vanilla Web Client.</p>
-                </div>
+            <div id="savedItemsList" style="display:flex; flex-direction:column; gap:12px;">
+                <p style="opacity:.7;">Loading saved items…</p>
             </div>
         `);
+
+        const list = document.getElementById("savedItemsList");
+        const token = getAccessToken();
+
+        const loadSavedItems = async () => {
+            try {
+                const response = await fetch(`${ASHAI_API_BASE_URL}/saved`, {
+                    headers: { Authorization: `Bearer ${token}` }
+                });
+                if (!response.ok) throw new Error("Unable to load saved items.");
+                const items = await response.json();
+                if (!list) return;
+
+                if (!items.length) {
+                    list.innerHTML = `
+                        <div style="padding:28px; text-align:center; border:1px dashed var(--border-color, #334155); border-radius:12px;">
+                            <strong style="display:block; margin-bottom:7px;">Nothing saved yet</strong>
+                            <span style="font-size:13px; opacity:.7;">Use the Save button below an AshAI response.</span>
+                        </div>
+                    `;
+                    return;
+                }
+
+                list.innerHTML = items.map((item) => `
+                    <article style="padding:16px; background:var(--bg-main, #0f172a); border-radius:12px; border:1px solid var(--border-color, #334155);">
+                        <div style="display:flex; justify-content:space-between; gap:12px; margin-bottom:10px;">
+                            <strong style="font-size:13px; color:#7797ff;">${escapeHtml(item.title)}</strong>
+                            <button type="button" class="delete-saved-item" data-saved-id="${item.id}"
+                                style="flex:0 0 auto; color:#fb7185; background:transparent; border:0; cursor:pointer;">Delete</button>
+                        </div>
+                        <p style="max-height:150px; overflow:auto; margin:0; white-space:pre-wrap; font-size:13px; line-height:1.6;">${escapeHtml(item.content)}</p>
+                        <span style="display:block; margin-top:10px; font-size:11px; opacity:.55;">${new Date(item.createdAt).toLocaleString()}</span>
+                    </article>
+                `).join("");
+            } catch (error) {
+                if (list) list.innerHTML = `<p style="color:#fb7185;">${escapeHtml(error.message)}</p>`;
+            }
+        };
+
+        list?.addEventListener("click", async (event) => {
+            const button = event.target.closest(".delete-saved-item");
+            if (!button) return;
+            button.disabled = true;
+            const response = await fetch(
+                `${ASHAI_API_BASE_URL}/saved/${encodeURIComponent(button.dataset.savedId)}`,
+                {
+                    method: "DELETE",
+                    headers: { Authorization: `Bearer ${token}` }
+                }
+            );
+            if (response.ok) await loadSavedItems();
+            else button.disabled = false;
+        });
+
+        await loadSavedItems();
     });
 
     const viewAllChatsBtn = document.querySelector(".sidebar-small-button");
     viewAllChatsBtn?.addEventListener("click", async () => {
         try {
             const token = localStorage.getItem("ashai_access_token") || sessionStorage.getItem("ashai_access_token");
-            const res = await fetch("http://localhost:8080/api/chat/history", {
+            const res = await fetch(`${ASHAI_API_BASE_URL}/chat/history`, {
                 headers: { "Authorization": `Bearer ${token}` }
             });
             const summaries = res.ok ? await res.json() : [];
 
             let listHtml = summaries.map((item, idx) => `
                 <div style="display:flex; justify-content:space-between; align-items:center; padding:12px; background:var(--bg-main, #0f172a); border-radius:8px; margin-bottom:8px;">
-                    <div style="cursor:pointer; flex:1;" onclick="window.selectModalChat('${item.conversationId}')">
-                        <strong style="font-size:14px; display:block;">${item.title || 'Conversation ' + (idx + 1)}</strong>
-                        <span style="font-size:11px; opacity:0.6;">ID: ${item.conversationId.substring(0, 8)}...</span>
-                    </div>
-                    <button type="button" style="background:#ef444422; color:#ef4444; border:none; padding:6px 12px; border-radius:6px; font-weight:600; cursor:pointer;" onclick="window.deleteModalChat('${item.conversationId}')">Delete</button>
+                    <button type="button" class="open-modal-chat"
+                        data-conversation-id="${escapeHtml(item.conversationId)}"
+                        style="cursor:pointer; flex:1; color:inherit; text-align:left; background:transparent; border:0;">
+                        <strong style="font-size:14px; display:block;">${escapeHtml(item.title || `Conversation ${idx + 1}`)}</strong>
+                        <span style="font-size:11px; opacity:0.6;">ID: ${escapeHtml(item.conversationId.substring(0, 8))}...</span>
+                    </button>
+                    <button type="button" class="delete-modal-chat"
+                        data-conversation-id="${escapeHtml(item.conversationId)}"
+                        style="background:#ef444422; color:#ef4444; border:none; padding:6px 12px; border-radius:6px; font-weight:600; cursor:pointer;">Delete</button>
                 </div>
             `).join("");
 
@@ -1438,19 +1834,32 @@ document.addEventListener("DOMContentLoaded", () => {
 
             createInteractiveModal("All Recent Conversations", listHtml);
 
-            window.selectModalChat = (id) => {
-                loadConversation(id);
-                document.getElementById("ashaiInteractiveModal")?.remove();
-            };
+            const modal = document.getElementById("ashaiInteractiveModal");
+            modal?.addEventListener("click", async (event) => {
+                const openButton = event.target.closest(".open-modal-chat");
+                if (openButton) {
+                    loadConversation(openButton.dataset.conversationId);
+                    modal.remove();
+                    return;
+                }
 
-            window.deleteModalChat = async (id) => {
-                await fetch(`http://localhost:8080/api/chat/history/${id}`, {
-                    method: "DELETE",
-                    headers: { "Authorization": `Bearer ${token}` }
-                });
-                document.getElementById("ashaiInteractiveModal")?.remove();
-                loadRecentChats();
-            };
+                const deleteButton = event.target.closest(".delete-modal-chat");
+                if (!deleteButton) return;
+                deleteButton.disabled = true;
+                const response = await fetch(
+                    `${ASHAI_API_BASE_URL}/chat/history/${encodeURIComponent(deleteButton.dataset.conversationId)}`,
+                    {
+                        method: "DELETE",
+                        headers: { "Authorization": `Bearer ${token}` }
+                    }
+                );
+                if (response.ok) {
+                    modal.remove();
+                    loadRecentChats();
+                } else {
+                    deleteButton.disabled = false;
+                }
+            });
         } catch (err) {
             console.error("Failed to fetch all chats:", err);
         }

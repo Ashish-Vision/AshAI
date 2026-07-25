@@ -1,5 +1,11 @@
 "use strict";
 
+const ASHAI_API_BASE_URL =
+    (window.ASHAI_API_ORIGIN ||
+        (["localhost", "127.0.0.1"].includes(window.location.hostname)
+            ? `http://${window.location.hostname}:8080`
+            : window.location.origin)) + "/api";
+
 document.addEventListener("DOMContentLoaded", () => {
     const loadingView = document.getElementById(
         "verificationLoadingView"
@@ -62,7 +68,7 @@ document.addEventListener("DOMContentLoaded", () => {
             }
 
             const response = await fetch(
-                `http://localhost:8080/api/auth/verify-email?token=${encodeURIComponent(token)}`
+                `${ASHAI_API_BASE_URL}/auth/verify-email?token=${encodeURIComponent(token)}`
             );
 
             if (!response.ok) {
@@ -97,7 +103,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 }
 
                 const response = await fetch(
-                    `http://localhost:8080/api/auth/resend-verification?token=${encodeURIComponent(token)}`,
+                    `${ASHAI_API_BASE_URL}/auth/resend-verification?token=${encodeURIComponent(token)}`,
                     {
                         method: "POST"
                     }

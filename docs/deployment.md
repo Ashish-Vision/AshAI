@@ -19,9 +19,19 @@
    ```
 
 ## Docker Container Deployment
+Set `JWT_SECRET`, database, Gemini, OAuth, SMTP, and public `FRONTEND_URL`
+environment variables in the deployment platform first. Never copy
+`backend/.env` into an image or commit it.
+
 Use Docker Compose from the project root:
 ```bash
 docker-compose -f docker/docker-compose.yml up --build -d
 ```
 - Backend API will be reachable at `http://localhost:8080`
 - Web Dashboard will be reachable at `http://localhost:5500`
+
+For production, serve the frontend over HTTPS. The included Nginx configuration
+proxies backend routes on the same public origin. Register these callbacks:
+
+- `https://your-domain.example/login/oauth2/code/google`
+- `https://your-domain.example/login/oauth2/code/github`

@@ -330,10 +330,14 @@ async function handleLoginSubmit(event) {
         console.error("Login error:", error);
 
         if (error.status === 401) {
+            const requiresVerification =
+                error.message?.toLowerCase().includes("verify your email");
             setFieldError(
                 passwordInput,
                 passwordError,
-                "The email address or password is incorrect."
+                requiresVerification
+                    ? "Verify your email address before signing in."
+                    : "The email address or password is incorrect."
             );
 
             passwordInput.focus();

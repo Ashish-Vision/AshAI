@@ -12,6 +12,7 @@ import javax.crypto.SecretKey;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.UUID;
 import java.util.function.Function;
 
 @Service
@@ -39,6 +40,9 @@ public class JwtService {
         return Jwts.builder()
                 .claims(extraClaims)
                 .subject(userDetails.getUsername())
+                .issuer("ashai-backend")
+                .audience().add("ashai-web").and()
+                .id(UUID.randomUUID().toString())
                 .issuedAt(issuedAt)
                 .expiration(expiration)
                 .signWith(getSigningKey())
@@ -60,6 +64,10 @@ public class JwtService {
         String email = extractEmail(token);
 
         return email.equalsIgnoreCase(userDetails.getUsername())
+                && userDetails.isEnabled()
+                && userDetails.isAccountNonExpired()
+                && userDetails.isAccountNonLocked()
+                && userDetails.isCredentialsNonExpired()
                 && !isTokenExpired(token);
     }
 
@@ -78,6 +86,8 @@ public class JwtService {
     private Claims extractAllClaims(String token) {
         return Jwts.parser()
                 .verifyWith(getSigningKey())
+                .requireIssuer("ashai-backend")
+                .requireAudience("ashai-web")
                 .build()
                 .parseSignedClaims(token)
                 .getPayload();
@@ -96,6 +106,9 @@ public class JwtService {
 
     return Jwts.builder()
             .subject(email)
+            .issuer("ashai-backend")
+            .audience().add("ashai-web").and()
+            .id(UUID.randomUUID().toString())
             .issuedAt(issuedAt)
             .expiration(expiration)
             .signWith(getSigningKey())

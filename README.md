@@ -41,6 +41,13 @@ export GOOGLE_CLIENT_SECRET="your-google-client-secret"
 export GITHUB_CLIENT_ID="your-github-client-id"
 export GITHUB_CLIENT_SECRET="your-github-client-secret"
 export FRONTEND_URL="http://localhost:5500"
+export JWT_SECRET="a-private-base64-encoded-key-of-at-least-32-bytes"
+export MAIL_ENABLED="true"
+export MAIL_FROM="your-address@gmail.com"
+export SMTP_HOST="smtp.gmail.com"
+export SMTP_PORT="587"
+export SMTP_USERNAME="your-address@gmail.com"
+export SMTP_PASSWORD="your-google-app-password"
 ```
 
 Register these authorization callback URLs with the providers:
@@ -50,3 +57,7 @@ Register these authorization callback URLs with the providers:
 
 For GitHub, set the homepage URL to `http://localhost:5500`. OAuth secrets must
 remain in environment variables and must never be committed.
+
+For deployment, replace `FRONTEND_URL` with the public HTTPS frontend origin and
+register the public OAuth callback URLs. The included Nginx container proxies
+`/api`, `/oauth2`, and `/login/oauth2` to the backend for same-origin requests.

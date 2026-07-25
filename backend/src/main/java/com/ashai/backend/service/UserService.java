@@ -85,6 +85,12 @@ public class UserService {
             throw new InvalidCredentialsException();
         }
 
+        if (!Boolean.TRUE.equals(user.getVerified())) {
+            throw new InvalidCredentialsException(
+                    "Verify your email address before signing in"
+            );
+        }
+
         String token = jwtService.generateToken(user.getEmail());
 
         return new LoginResponse(
@@ -136,6 +142,7 @@ public class UserService {
 
     @Transactional
     public void forgotPassword(String email) {
+        emailService.requireConfigured();
         String normalizedEmail = email.trim().toLowerCase(Locale.ROOT);
         User user = userRepository.findByEmail(normalizedEmail).orElse(null);
 

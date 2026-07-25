@@ -317,17 +317,27 @@ a {
     min-height: 0;
 }
 
+.recent-chat-row {
+    display: flex;
+    align-items: center;
+    gap: 3px;
+    border-radius: 8px;
+}
+
 .recent-chat-item {
     display: flex;
+    flex: 1 1 auto;
     align-items: center;
     gap: 10px;
 
+    min-width: 0;
     min-height: 39px;
     padding: 8px 10px;
 
     color: #828da2;
     background: transparent;
 
+    border: 0;
     border-radius: 8px;
 
     text-align: left;
@@ -337,6 +347,41 @@ a {
     transition:
         color 160ms ease,
         background-color 160ms ease;
+}
+
+.recent-chat-pin {
+    display: inline-grid;
+    flex: 0 0 auto;
+    width: 30px;
+    height: 30px;
+    place-items: center;
+    padding: 0;
+    color: #68758c;
+    background: transparent;
+    border: 0;
+    border-radius: 7px;
+    cursor: pointer;
+    opacity: 0;
+    transition: color 160ms ease, background-color 160ms ease, opacity 160ms ease;
+}
+
+.recent-chat-row:hover .recent-chat-pin,
+.recent-chat-pin:focus-visible,
+.recent-chat-pin.is-pinned {
+    opacity: 1;
+}
+
+.recent-chat-pin:hover {
+    color: #cbd5e1;
+    background: rgba(77, 93, 126, 0.18);
+}
+
+.recent-chat-pin.is-pinned {
+    color: #7797ff;
+}
+
+.recent-chat-pin.is-pinned svg {
+    fill: currentColor;
 }
 
 .recent-chat-item:hover,
@@ -487,9 +532,159 @@ a {
 }
 
 .dashboard-header-actions {
+    position: relative;
     display: flex;
     align-items: center;
     gap: 9px;
+}
+
+.dashboard-popover {
+    position: absolute;
+    top: calc(100% + 12px);
+    right: 0;
+    z-index: 100;
+    width: min(360px, calc(100vw - 32px));
+    overflow: hidden;
+    color: #dfe5f0;
+    background: #111c30;
+    border: 1px solid rgba(134, 151, 188, 0.2);
+    border-radius: 14px;
+    box-shadow: 0 20px 50px rgba(0, 0, 0, 0.38);
+}
+
+.notification-popover {
+    right: 150px;
+}
+
+.popover-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 15px;
+    padding: 16px;
+    border-bottom: 1px solid rgba(134, 151, 188, 0.14);
+}
+
+.popover-header div {
+    display: grid;
+    gap: 3px;
+}
+
+.popover-header span,
+.profile-popover-summary span {
+    color: #8e9bb0;
+    font-size: 0.72rem;
+}
+
+.popover-header button {
+    padding: 0;
+    color: #7797ff;
+    background: none;
+    border: 0;
+    cursor: pointer;
+    font-size: 0.72rem;
+    font-weight: 700;
+}
+
+.notification-list {
+    max-height: 330px;
+    overflow-y: auto;
+}
+
+.notification-item {
+    display: grid;
+    grid-template-columns: 8px 1fr;
+    gap: 11px;
+    padding: 15px 16px;
+    border-bottom: 1px solid rgba(134, 151, 188, 0.1);
+}
+
+.notification-item:last-child {
+    border-bottom: 0;
+}
+
+.notification-item-dot {
+    width: 7px;
+    height: 7px;
+    margin-top: 5px;
+    border-radius: 50%;
+    background: #537dff;
+}
+
+.notification-item.read .notification-item-dot {
+    background: #526078;
+}
+
+.notification-item strong,
+.notification-item span {
+    display: block;
+}
+
+.notification-item strong {
+    margin-bottom: 4px;
+    font-size: 0.78rem;
+}
+
+.notification-item span {
+    color: #8e9bb0;
+    font-size: 0.72rem;
+    line-height: 1.45;
+}
+
+.profile-popover {
+    width: 280px;
+}
+
+.profile-popover-summary {
+    display: flex;
+    align-items: center;
+    gap: 11px;
+    padding: 16px;
+    border-bottom: 1px solid rgba(134, 151, 188, 0.14);
+}
+
+.profile-popover-summary > div {
+    display: grid;
+    min-width: 0;
+    gap: 3px;
+}
+
+.profile-popover-summary strong,
+.profile-popover-summary span {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.popover-menu-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    width: 100%;
+    min-height: 43px;
+    padding: 0 16px;
+    color: #cbd5e1;
+    background: transparent;
+    border: 0;
+    border-bottom: 1px solid rgba(134, 151, 188, 0.08);
+    cursor: pointer;
+    font: inherit;
+    font-size: 0.78rem;
+    text-decoration: none;
+}
+
+.popover-menu-item:hover {
+    color: #fff;
+    background: rgba(83, 125, 255, 0.1);
+}
+
+.popover-menu-item strong {
+    color: #7797ff;
+    font-size: 0.7rem;
+}
+
+.popover-menu-item.danger {
+    color: #fb7185;
 }
 
 .header-icon-button {
@@ -815,6 +1010,20 @@ a {
     display: flex;
     align-items: center;
     gap: 7px;
+    min-width: 0;
+}
+
+.attachment-status {
+    overflow: hidden;
+    max-width: 140px;
+    color: #8fa1bd;
+    font-size: 0.68rem;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.attachment-status.is-error {
+    color: #f87171;
 }
 
 .composer-tool-button {

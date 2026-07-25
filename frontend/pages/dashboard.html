@@ -246,7 +246,8 @@
 
                 <div class="dashboard-header-actions">
 
-                    <button type="button" class="header-icon-button" aria-label="Search conversations">
+                    <button type="button" class="header-icon-button" id="dashboardSearchButton"
+                        aria-label="Search conversations">
                         <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor"
                             stroke-width="2" stroke-linecap="round">
                             <circle cx="11" cy="11" r="7"></circle>
@@ -255,7 +256,7 @@
                     </button>
 
                     <button type="button" class="header-icon-button notification-button"
-                        aria-label="View notifications">
+                        id="notificationButton" aria-label="View notifications" aria-expanded="false">
                         <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor"
                             stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                             <path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9"></path>
@@ -265,14 +266,15 @@
                         <span class="notification-dot" aria-hidden="true"></span>
                     </button>
 
-                    <button type="button" class="header-profile-button" aria-label="Open profile menu">
-                        <span class="header-profile-avatar" aria-hidden="true">
+                    <button type="button" class="header-profile-button" id="headerProfileButton"
+                        aria-label="Open profile menu" aria-expanded="false">
+                        <span class="header-profile-avatar" id="headerProfileAvatar" aria-hidden="true">
                             AM
                         </span>
 
                         <span class="header-profile-text">
-                            <strong>Ashish</strong>
-                            <small>Free Plan</small>
+                            <strong id="headerProfileName">Ashish</strong>
+                            <small id="headerPlanName">Free Plan</small>
                         </span>
 
                         <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor"
@@ -280,6 +282,29 @@
                             <path d="M6 9l6 6 6-6"></path>
                         </svg>
                     </button>
+
+                    <div class="dashboard-popover notification-popover" id="notificationPopover" hidden>
+                        <div class="popover-header">
+                            <div><strong>Notifications</strong><span>Workspace updates</span></div>
+                            <button type="button" id="markNotificationsRead">Mark all read</button>
+                        </div>
+                        <div class="notification-list" id="notificationList"></div>
+                    </div>
+
+                    <div class="dashboard-popover profile-popover" id="profilePopover" hidden>
+                        <div class="profile-popover-summary">
+                            <span class="header-profile-avatar" id="menuProfileAvatar">AM</span>
+                            <div><strong id="menuProfileName">Ashish</strong><span id="menuProfileEmail">Account</span></div>
+                        </div>
+                        <button type="button" class="popover-menu-item" id="planDetailsButton">
+                            <span>Current plan</span><strong id="menuPlanName">Free Plan</strong>
+                        </button>
+                        <a class="popover-menu-item" href="./profile.html"><span>Profile</span><span>›</span></a>
+                        <a class="popover-menu-item" href="./settings.html"><span>Settings</span><span>›</span></a>
+                        <button type="button" class="popover-menu-item danger" id="dashboardLogoutButton">
+                            <span>Sign out</span><span>↗</span>
+                        </button>
+                    </div>
 
                 </div>
 
@@ -398,7 +423,9 @@
                         <div class="chat-composer-toolbar">
 
                             <div class="chat-composer-left" style="position: relative;">
-                                <input type="file" id="fileAttachInput" style="display: none;">
+                                <input type="file" id="fileAttachInput"
+                                    accept=".txt,.md,.markdown,.json,.csv,.xml,.yaml,.yml,.html,.css,.js,.jsx,.ts,.tsx,.java,.py,.c,.cpp,.h,.hpp,.sql,.sh"
+                                    style="display: none;">
                                 <button type="button" class="composer-tool-button" id="attachFileBtn" aria-label="Attach a file">
                                     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor"
                                         stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
@@ -408,6 +435,8 @@
                                         </path>
                                     </svg>
                                 </button>
+                                <span id="attachmentStatus" class="attachment-status" role="status"
+                                    aria-live="polite"></span>
 
                                 <button type="button" class="model-selector" id="modelSelectorBtn">
                                     <span class="model-status"></span>
@@ -422,15 +451,15 @@
                                 <div id="modelDropdownMenu" class="model-dropdown-menu" hidden style="position: absolute; bottom: 100%; left: 40px; margin-bottom: 8px; background: var(--bg-card, #1e293b); border: 1px solid var(--border-color, #334155); border-radius: 12px; box-shadow: 0 10px 25px rgba(0,0,0,0.3); padding: 8px; min-width: 220px; z-index: 100;">
                                     <button type="button" class="model-option-btn" data-model="AshAI Standard" style="width:100%; text-align:left; padding: 10px 12px; background: transparent; border: none; color: inherit; border-radius: 6px; cursor: pointer; display: flex; flex-direction: column;">
                                         <strong style="font-size: 14px;">⚡ AshAI Standard</strong>
-                                        <span style="font-size: 11px; opacity: 0.7;">Gemini Flash — Fast & responsive</span>
+                                        <span style="font-size: 11px; opacity: 0.7;">Gemini 3.6 Flash — Fast everyday help</span>
                                     </button>
                                     <button type="button" class="model-option-btn" data-model="AshAI Pro" style="width:100%; text-align:left; padding: 10px 12px; background: transparent; border: none; color: inherit; border-radius: 6px; cursor: pointer; display: flex; flex-direction: column;">
                                         <strong style="font-size: 14px;">🧠 AshAI Pro</strong>
-                                        <span style="font-size: 11px; opacity: 0.7;">Gemini 1.5 Pro — Complex reasoning</span>
+                                        <span style="font-size: 11px; opacity: 0.7;">Gemini 3.1 Pro — Advanced reasoning</span>
                                     </button>
                                     <button type="button" class="model-option-btn" data-model="AshAI Code Expert" style="width:100%; text-align:left; padding: 10px 12px; background: transparent; border: none; color: inherit; border-radius: 6px; cursor: pointer; display: flex; flex-direction: column;">
                                         <strong style="font-size: 14px;">💻 AshAI Code Expert</strong>
-                                        <span style="font-size: 11px; opacity: 0.7;">Optimized for code generation</span>
+                                        <span style="font-size: 11px; opacity: 0.7;">Gemini 3.6 Flash — Engineering mode</span>
                                     </button>
                                 </div>
                             </div>

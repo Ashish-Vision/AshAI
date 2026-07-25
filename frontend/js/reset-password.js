@@ -1,5 +1,11 @@
 "use strict";
 
+const ASHAI_API_BASE_URL =
+    (window.ASHAI_API_ORIGIN ||
+        (["localhost", "127.0.0.1"].includes(window.location.hostname)
+            ? `http://${window.location.hostname}:8080`
+            : window.location.origin)) + "/api";
+
 /* =========================================================
    RESET PASSWORD PAGE
 ========================================================= */
@@ -508,7 +514,7 @@ document.addEventListener("DOMContentLoaded", () => {
                     window.location.search
                 ).get("token");
 
-                const response = await fetch("http://localhost:8080/api/auth/reset-password", {
+                const response = await fetch(`${ASHAI_API_BASE_URL}/auth/reset-password`, {
                     method: "POST",
                     headers: {
                         "Content-Type": "application/json"

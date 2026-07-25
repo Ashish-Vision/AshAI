@@ -5,6 +5,7 @@ import com.ashai.backend.security.OAuth2LoginFailureHandler;
 import com.ashai.backend.security.OAuth2LoginSuccessHandler;
 import com.ashai.backend.security.OAuth2UserService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.authentication.AuthenticationManager;
@@ -15,12 +16,14 @@ import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.HttpStatusEntryPoint;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
+import org.springframework.security.web.header.writers.ReferrerPolicyHeaderWriter;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
 import java.util.List;
+import java.util.stream.Stream;
 
 @Configuration
 @EnableMethodSecurity
@@ -32,6 +35,9 @@ public class SecurityConfig {
     private final OAuth2LoginFailureHandler oAuth2LoginFailureHandler;
     private final OAuth2UserService oAuth2UserService;
 
+    @Value("${app.frontend-url:http://localhost:5500}")
+    private String frontendUrl;
+
     @Bean
     public SecurityFilterChain securityFilterChain(
             HttpSecurity http
@@ -42,6 +48,17 @@ public class SecurityConfig {
                         corsConfigurationSource()
                 ))
                 .csrf(csrf -> csrf.disable())
+                .headers(headers -> headers
+                        .contentTypeOptions(contentType -> {
+                        })
+                        .frameOptions(frame -> frame.deny())
+                        .referrerPolicy(referrer -> referrer.policy(
+                                ReferrerPolicyHeaderWriter.ReferrerPolicy.NO_REFERRER
+                        ))
+                        .permissionsPolicyHeader(permissions -> permissions.policy(
+                                "camera=(), microphone=(), geolocation=()"
+                        ))
+                )
                 .exceptionHandling(exceptions -> exceptions
                         .defaultAuthenticationEntryPointFor(
                                 new HttpStatusEntryPoint(HttpStatus.UNAUTHORIZED),
@@ -91,10 +108,14 @@ public class SecurityConfig {
         CorsConfiguration configuration =
                 new CorsConfiguration();
 
-        configuration.setAllowedOrigins(List.of(
-                "http://localhost:5500",
-                "http://127.0.0.1:5500"
-        ));
+        configuration.setAllowedOrigins(Stream.of(
+                        "http://localhost:5500",
+                        "http://127.0.0.1:5500",
+                        frontendUrl
+                )
+                .filter(origin -> origin != null && !origin.isBlank())
+                .distinct()
+                .toList());
 
         configuration.setAllowedMethods(List.of(
                 "GET",

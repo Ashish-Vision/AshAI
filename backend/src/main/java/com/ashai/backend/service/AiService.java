@@ -11,10 +11,13 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.client.RestClient;
+import org.springframework.web.client.RestClientResponseException;
 
 import java.time.LocalDateTime;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 
 @Slf4j
@@ -26,6 +29,12 @@ public class AiService {
 
     @Value("${gemini.api.model:gemini-flash-latest}")
     private String geminiModel;
+
+    @Value("${gemini.api.pro-model:gemini-pro-latest}")
+    private String geminiProModel;
+
+    @Value("${gemini.google-search.enabled:true}")
+    private boolean googleSearchEnabled;
 
     private final RestClient restClient;
     private final ChatMessageRepository chatMessageRepository;
@@ -45,7 +54,8 @@ public class AiService {
                 : UUID.randomUUID().toString();
 
         String reply;
-        String modelName = request.getModel() != null ? request.getModel() : "AshAI Standard";
+        ModeConfig mode = resolveMode(request.getModel());
+        String modelName = mode.label();
 
         // Check if environment variable or configured property has Gemini API key
         String apiKey = (geminiApiKey != null && !geminiApiKey.isBlank()) 
@@ -54,7 +64,7 @@ public class AiService {
 
         if (apiKey != null && !apiKey.isBlank()) {
             try {
-                reply = callGeminiApi(prompt, apiKey);
+                reply = callGeminiApi(prompt, apiKey, mode);
             } catch (Exception e) {
                 log.error("Failed to fetch response from Gemini API, falling back to intelligent assistant engine: {}", e.getMessage());
                 reply = generateAssistantFallback(prompt);
@@ -132,43 +142,216 @@ public class AiService {
         chatMessageRepository.deleteByUserAndConversationId(user, conversationId);
     }
 
-    private String callGeminiApi(String prompt, String apiKey) {
-        String url = "https://generativelanguage.googleapis.com/v1beta/models/"
-                + geminiModel
-                + ":generateContent";
-
-        Map<String, Object> requestBody = Map.of(
+    private String callGeminiApi(String prompt, String apiKey, ModeConfig mode) {
+        Map<String, Object> baseRequestBody = Map.of(
                 "contents", List.of(
                         Map.of("parts", List.of(Map.of("text", prompt)))
+                ),
+                "systemInstruction", Map.of(
+                        "parts", List.of(Map.of("text", mode.systemInstruction()))
+                ),
+                "generationConfig", Map.of(
+                        "temperature", mode.temperature(),
+                        "maxOutputTokens", mode.maxOutputTokens()
                 )
         );
 
-        @SuppressWarnings("unchecked")
-        Map<String, Object> response = restClient.post()
+        Map<String, Object> response;
+        try {
+            response = executeWithOptionalGrounding(
+                    buildGeminiUrl(mode.model()),
+                    apiKey,
+                    baseRequestBody,
+                    mode.webSearch()
+            );
+        } catch (RestClientResponseException exception) {
+            if (mode.model().equals(geminiModel)) {
+                throw exception;
+            }
+            log.warn(
+                    "{} is unavailable (HTTP {}). Retrying with {} while preserving the selected mode.",
+                    mode.model(),
+                    exception.getStatusCode().value(),
+                    geminiModel
+            );
+            response = executeWithOptionalGrounding(
+                    buildGeminiUrl(geminiModel),
+                    apiKey,
+                    baseRequestBody,
+                    mode.webSearch()
+            );
+        }
+
+        return extractGeminiResponse(response, prompt);
+    }
+
+    private Map<String, Object> executeWithOptionalGrounding(
+            String url,
+            String apiKey,
+            Map<String, Object> baseRequestBody,
+            boolean modeAllowsWebSearch
+    ) {
+        if (googleSearchEnabled && modeAllowsWebSearch) {
+            Map<String, Object> groundedRequestBody = Map.of(
+                    "contents", baseRequestBody.get("contents"),
+                    "systemInstruction", baseRequestBody.get("systemInstruction"),
+                    "generationConfig", baseRequestBody.get("generationConfig"),
+                    "tools", List.of(Map.of("google_search", Map.of()))
+            );
+            try {
+                return executeGeminiRequest(url, apiKey, groundedRequestBody);
+            } catch (RestClientResponseException exception) {
+                log.warn(
+                        "Google Search grounding is unavailable (HTTP {}). Retrying without web grounding.",
+                        exception.getStatusCode().value()
+                );
+                return executeGeminiRequest(url, apiKey, baseRequestBody);
+            }
+        }
+        return executeGeminiRequest(url, apiKey, baseRequestBody);
+    }
+
+    private String buildGeminiUrl(String model) {
+        return "https://generativelanguage.googleapis.com/v1beta/models/"
+                + model
+                + ":generateContent";
+    }
+
+    private ModeConfig resolveMode(String selectedMode) {
+        String normalized = selectedMode == null ? "" : selectedMode.trim().toLowerCase();
+        if (normalized.contains("code")) {
+            return new ModeConfig(
+                    "AshAI Code Expert",
+                    geminiModel,
+                    """
+                    You are AshAI Code Expert, a senior software engineer. Produce secure, maintainable,
+                    production-ready solutions. Prefer concrete code and precise debugging steps, explain
+                    important trade-offs, use fenced code blocks, and never invent APIs or test results.
+                    Keep non-programming answers concise. Do not use web search unless the user explicitly
+                    needs current technical information.
+                    """,
+                    0.15,
+                    4096,
+                    false
+            );
+        }
+        if (normalized.contains("pro")) {
+            return new ModeConfig(
+                    "AshAI Pro",
+                    geminiProModel,
+                    """
+                    You are AshAI Pro, an advanced analytical assistant. Solve complex requests rigorously,
+                    examine assumptions, compare alternatives, and give a clear conclusion with actionable
+                    next steps. Use current Google Search evidence when available and clearly distinguish
+                    sourced facts from inference. Format answers in readable Markdown.
+                    """,
+                    0.35,
+                    4096,
+                    true
+            );
+        }
+        return new ModeConfig(
+                "AshAI Standard",
+                geminiModel,
+                """
+                You are AshAI Standard, a fast and helpful everyday assistant. Give accurate, practical,
+                easy-to-read answers without unnecessary detail. Use current Google Search evidence when
+                available, acknowledge uncertainty, and format answers in readable Markdown.
+                """,
+                0.7,
+                2048,
+                true
+        );
+    }
+
+    private record ModeConfig(
+            String label,
+            String model,
+            String systemInstruction,
+            double temperature,
+            int maxOutputTokens,
+            boolean webSearch
+    ) {
+    }
+
+    @SuppressWarnings("unchecked")
+    private Map<String, Object> executeGeminiRequest(
+            String url,
+            String apiKey,
+            Map<String, Object> requestBody
+    ) {
+        return restClient.post()
                 .uri(url)
                 .header("Content-Type", "application/json")
                 .header("x-goog-api-key", apiKey)
                 .body(requestBody)
                 .retrieve()
                 .body(Map.class);
+    }
 
+    @SuppressWarnings("unchecked")
+    private String extractGeminiResponse(
+            Map<String, Object> response,
+            String prompt
+    ) {
         if (response != null && response.containsKey("candidates")) {
-            @SuppressWarnings("unchecked")
             List<Map<String, Object>> candidates = (List<Map<String, Object>>) response.get("candidates");
             if (!candidates.isEmpty()) {
-                @SuppressWarnings("unchecked")
-                Map<String, Object> content = (Map<String, Object>) candidates.get(0).get("content");
+                Map<String, Object> candidate = candidates.get(0);
+                Map<String, Object> content = (Map<String, Object>) candidate.get("content");
                 if (content != null && content.containsKey("parts")) {
-                    @SuppressWarnings("unchecked")
                     List<Map<String, Object>> parts = (List<Map<String, Object>>) content.get("parts");
                     if (!parts.isEmpty()) {
-                        return (String) parts.get(0).get("text");
+                        return appendGroundingSources(
+                                (String) parts.get(0).get("text"),
+                                (Map<String, Object>) candidate.get("groundingMetadata")
+                        );
                     }
                 }
             }
         }
 
         return generateAssistantFallback(prompt);
+    }
+
+    private String appendGroundingSources(
+            String answer,
+            Map<String, Object> groundingMetadata
+    ) {
+        if (answer == null || groundingMetadata == null) {
+            return answer;
+        }
+
+        Object chunksValue = groundingMetadata.get("groundingChunks");
+        if (!(chunksValue instanceof List<?> chunks)) {
+            return answer;
+        }
+
+        Set<String> sources = new LinkedHashSet<>();
+        for (Object chunkValue : chunks) {
+            if (!(chunkValue instanceof Map<?, ?> chunk)) {
+                continue;
+            }
+            Object webValue = chunk.get("web");
+            if (!(webValue instanceof Map<?, ?> web)) {
+                continue;
+            }
+
+            Object uriValue = web.get("uri");
+            Object titleValue = web.get("title");
+            String uri = uriValue == null ? "" : uriValue.toString();
+            String title = titleValue == null ? "Source" : titleValue.toString();
+            if (!uri.isBlank()) {
+                sources.add("- [" + title.replace("]", "") + "](" + uri + ")");
+            }
+            if (sources.size() == 5) {
+                break;
+            }
+        }
+
+        return sources.isEmpty()
+                ? answer
+                : answer + "\n\n### Sources\n" + String.join("\n", sources);
     }
 
     private String generateAssistantFallback(String prompt) {

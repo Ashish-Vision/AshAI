@@ -1479,8 +1479,8 @@ body::after {
 
 .footer-social-links a {
     display: grid;
-    width: 42px;
-    height: 42px;
+    width: 44px;
+    height: 44px;
     place-items: center;
     border: 1px solid var(--color-border);
     border-radius: var(--radius-md);
@@ -1493,6 +1493,11 @@ body::after {
         color var(--transition-fast),
         border-color var(--transition-fast),
         background-color var(--transition-fast);
+}
+
+.footer-social-links svg {
+    width: 20px;
+    height: 20px;
 }
 
 .footer-social-links a:hover {

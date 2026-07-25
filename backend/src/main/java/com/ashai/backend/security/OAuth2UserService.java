@@ -29,7 +29,12 @@ public class OAuth2UserService
         Map<String, Object> attributes = new HashMap<>(user.getAttributes());
         String registrationId = userRequest.getClientRegistration().getRegistrationId();
 
-        if ("github".equals(registrationId) && isBlank(attributes.get("email"))) {
+        if ("google".equals(registrationId)
+                && !Boolean.TRUE.equals(attributes.get("email_verified"))) {
+            throw unverifiedEmail();
+        }
+
+        if ("github".equals(registrationId)) {
             String email = loadVerifiedGitHubEmail(
                     userRequest.getAccessToken().getTokenValue()
             );
@@ -37,10 +42,7 @@ public class OAuth2UserService
         }
 
         if (isBlank(attributes.get("email"))) {
-            throw new OAuth2AuthenticationException(
-                    new OAuth2Error("email_not_available"),
-                    "The OAuth provider did not return a verified email address"
-            );
+            throw unverifiedEmail();
         }
 
         String userNameAttribute = userRequest.getClientRegistration()
@@ -81,5 +83,12 @@ public class OAuth2UserService
 
     private boolean isBlank(Object value) {
         return value == null || String.valueOf(value).isBlank();
+    }
+
+    private OAuth2AuthenticationException unverifiedEmail() {
+        return new OAuth2AuthenticationException(
+                new OAuth2Error("verified_email_required"),
+                "The OAuth provider did not return a verified email address"
+        );
     }
 }
