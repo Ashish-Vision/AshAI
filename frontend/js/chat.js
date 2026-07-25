@@ -728,13 +728,20 @@ document.addEventListener("DOMContentLoaded", () => {
                 body: JSON.stringify({
                     message: userPrompt || "Hello",
                     conversationId: window.activeConversationId || null,
-                    model: selectedModel
+                    model: selectedModel,
+                    attachmentName: pendingAttachment?.name || null,
+                    attachmentMimeType: pendingAttachment?.mimeType || null,
+                    attachmentData: pendingAttachment?.data || null
                 })
             });
 
             if (res.ok) {
                 const data = await res.json();
                 responseText = data.reply;
+                pendingAttachment = null;
+                if (fileAttachInput) fileAttachInput.value = "";
+                if (cameraCaptureInput) cameraCaptureInput.value = "";
+                if (attachmentStatus) attachmentStatus.textContent = "";
                 if (data.conversationId) {
                     window.activeConversationId = data.conversationId;
                 }
@@ -1194,47 +1201,73 @@ document.addEventListener("DOMContentLoaded", () => {
 
     const attachFileBtn = document.getElementById("attachFileBtn");
     const fileAttachInput = document.getElementById("fileAttachInput");
+    const cameraCaptureBtn = document.getElementById("cameraCaptureBtn");
+    const cameraCaptureInput = document.getElementById("cameraCaptureInput");
     const attachmentStatus = document.getElementById("attachmentStatus");
-    const MAX_ATTACHMENT_BYTES = 15_000;
+    const MAX_TEXT_ATTACHMENT_BYTES = 100_000;
+    const MAX_IMAGE_ATTACHMENT_BYTES = 3_000_000;
+    let pendingAttachment = null;
+
+    const showAttachmentStatus = (message, isError = false) => {
+        if (!attachmentStatus) return;
+        attachmentStatus.textContent = message;
+        attachmentStatus.classList.toggle("is-error", isError);
+    };
+
+    const readAttachment = (file, input) => {
+        if (!file) return;
+        const isImage = file.type.startsWith("image/");
+        const limit = isImage ? MAX_IMAGE_ATTACHMENT_BYTES : MAX_TEXT_ATTACHMENT_BYTES;
+
+        if (file.size > limit) {
+            showAttachmentStatus(
+                    isImage ? "Image must be under 3 MB" : "File must be under 100 KB",
+                    true
+            );
+            input.value = "";
+            return;
+        }
+
+        const supportedTextTypes = new Set([
+            "text/plain", "text/markdown", "application/json", "application/xml", "text/xml"
+        ]);
+        const mimeType = file.type || "text/plain";
+        if (!isImage && !supportedTextTypes.has(mimeType)) {
+            showAttachmentStatus("Unsupported file type", true);
+            input.value = "";
+            return;
+        }
+
+        const reader = new FileReader();
+        reader.onload = (event) => {
+            const dataUrl = String(event.target.result);
+            pendingAttachment = {
+                name: file.name || (isImage ? "camera-photo.jpg" : "attachment.txt"),
+                mimeType: mimeType === "text/xml" ? "application/xml" : mimeType,
+                data: dataUrl.slice(dataUrl.indexOf(",") + 1)
+            };
+            showAttachmentStatus(`${pendingAttachment.name} ready`);
+            updateSendButton();
+            promptInput.focus();
+        };
+        reader.onerror = () => {
+            showAttachmentStatus("Could not read file", true);
+            input.value = "";
+        };
+        reader.readAsDataURL(file);
+    };
 
     if (attachFileBtn && fileAttachInput) {
-        attachFileBtn.addEventListener("click", () => {
-            fileAttachInput.click();
+        attachFileBtn.addEventListener("click", () => fileAttachInput.click());
+        fileAttachInput.addEventListener("change", (event) => {
+            readAttachment(event.target.files[0], fileAttachInput);
         });
+    }
 
-        fileAttachInput.addEventListener("change", (e) => {
-            const file = e.target.files[0];
-            if (!file) return;
-
-            if (file.size > MAX_ATTACHMENT_BYTES) {
-                if (attachmentStatus) {
-                    attachmentStatus.textContent = "File must be under 15 KB";
-                    attachmentStatus.classList.add("is-error");
-                }
-                fileAttachInput.value = "";
-                return;
-            }
-
-            const reader = new FileReader();
-            reader.onload = (event) => {
-                const content = event.target.result;
-                promptInput.value += `\n\n[Attached File: ${file.name}]\n\`\`\`\n${content}\n\`\`\`\n`;
-                if (attachmentStatus) {
-                    attachmentStatus.textContent = file.name;
-                    attachmentStatus.classList.remove("is-error");
-                }
-                resizeTextarea();
-                updateSendButton();
-                promptInput.focus();
-            };
-            reader.onerror = () => {
-                if (attachmentStatus) {
-                    attachmentStatus.textContent = "Could not read file";
-                    attachmentStatus.classList.add("is-error");
-                }
-                fileAttachInput.value = "";
-            };
-            reader.readAsText(file);
+    if (cameraCaptureBtn && cameraCaptureInput) {
+        cameraCaptureBtn.addEventListener("click", () => cameraCaptureInput.click());
+        cameraCaptureInput.addEventListener("change", (event) => {
+            readAttachment(event.target.files[0], cameraCaptureInput);
         });
     }
 

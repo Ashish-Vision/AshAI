@@ -425,7 +425,9 @@
 
                             <div class="chat-composer-left" style="position: relative;">
                                 <input type="file" id="fileAttachInput"
-                                    accept=".txt,.md,.markdown,.json,.csv,.xml,.yaml,.yml,.html,.css,.js,.jsx,.ts,.tsx,.java,.py,.c,.cpp,.h,.hpp,.sql,.sh"
+                                    accept="image/jpeg,image/png,image/webp,image/gif,.txt,.md,.markdown,.json,.xml"
+                                    style="display: none;">
+                                <input type="file" id="cameraCaptureInput" accept="image/*" capture="environment"
                                     style="display: none;">
                                 <button type="button" class="composer-tool-button" id="attachFileBtn" aria-label="Attach a file">
                                     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor"
@@ -434,6 +436,15 @@
                                         <path
                                             d="M21.4 11.6l-8.9 8.9a6 6 0 0 1-8.5-8.5l9.6-9.6a4 4 0 0 1 5.7 5.7l-9.6 9.6a2 2 0 1 1-2.8-2.8l8.9-8.9">
                                         </path>
+                                    </svg>
+                                </button>
+                                <button type="button" class="composer-tool-button" id="cameraCaptureBtn"
+                                    aria-label="Take a photo">
+                                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none"
+                                        stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                                        stroke-linejoin="round" aria-hidden="true">
+                                        <path d="M14.5 4l1.5 2H20a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l1.5-2z"></path>
+                                        <circle cx="12" cy="13" r="3"></circle>
                                     </svg>
                                 </button>
                                 <span id="attachmentStatus" class="attachment-status" role="status"

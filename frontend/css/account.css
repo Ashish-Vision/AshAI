@@ -28,6 +28,7 @@
 
 body.account-page {
     min-height: 100vh;
+    min-height: 100dvh;
     margin: 0;
     color: var(--account-text);
     background:
@@ -507,5 +508,89 @@ body.account-page {
 
     .account-topbar {
         padding: 0 16px;
+    }
+}
+
+@media (max-width: 480px) {
+    .account-topbar {
+        min-height: 64px;
+        gap: 12px;
+        padding: 0 12px;
+    }
+
+    .account-brand {
+        flex: 0 0 auto;
+    }
+
+    .account-back {
+        min-width: 0;
+        font-size: 12px;
+        text-align: right;
+    }
+
+    .account-shell {
+        width: calc(100% - 20px);
+        gap: 18px;
+        margin: 16px auto 40px;
+    }
+
+    .account-sidebar {
+        padding: 10px;
+        border-radius: 14px;
+    }
+
+    .account-sidebar-label {
+        margin: 3px 8px 8px;
+    }
+
+    .account-nav a {
+        justify-content: center;
+        padding: 10px 8px;
+        font-size: 12px;
+        text-align: center;
+    }
+
+    .account-heading {
+        margin-bottom: 18px;
+    }
+
+    .profile-hero {
+        gap: 14px;
+        padding: 18px 16px;
+    }
+
+    .profile-avatar {
+        width: 64px;
+        height: 64px;
+        border-radius: 18px;
+        font-size: 24px;
+    }
+
+    .profile-copy h2,
+    .profile-copy p {
+        white-space: normal;
+        overflow-wrap: anywhere;
+    }
+
+    .card-header,
+    .card-body {
+        padding-right: 16px;
+        padding-left: 16px;
+    }
+
+    .form-actions {
+        align-items: stretch;
+        flex-direction: column;
+    }
+
+    .account-button {
+        width: 100%;
+    }
+
+    .account-input,
+    .account-select,
+    .account-textarea {
+        max-width: 100%;
+        font-size: 16px;
     }
 }

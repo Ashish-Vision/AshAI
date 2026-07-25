@@ -15,6 +15,7 @@ import org.springframework.web.client.RestClientResponseException;
 
 import java.time.LocalDateTime;
 import java.util.LinkedHashSet;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -64,7 +65,7 @@ public class AiService {
 
         if (apiKey != null && !apiKey.isBlank()) {
             try {
-                reply = callGeminiApi(prompt, apiKey, mode);
+                reply = callGeminiApi(prompt, apiKey, mode, request);
             } catch (Exception e) {
                 log.error("Failed to fetch response from Gemini API, falling back to intelligent assistant engine: {}", e.getMessage());
                 reply = generateAssistantFallback(prompt);
@@ -142,10 +143,24 @@ public class AiService {
         chatMessageRepository.deleteByUserAndConversationId(user, conversationId);
     }
 
-    private String callGeminiApi(String prompt, String apiKey, ModeConfig mode) {
+    private String callGeminiApi(String prompt, String apiKey, ModeConfig mode, ChatRequest request) {
+        List<Map<String, Object>> parts = new ArrayList<>();
+        parts.add(Map.of("text", prompt));
+        if (request.getAttachmentData() != null
+                && !request.getAttachmentData().isBlank()
+                && request.getAttachmentMimeType() != null
+                && !request.getAttachmentMimeType().isBlank()) {
+            parts.add(Map.of(
+                    "inlineData", Map.of(
+                            "mimeType", request.getAttachmentMimeType(),
+                            "data", request.getAttachmentData()
+                    )
+            ));
+        }
+
         Map<String, Object> baseRequestBody = Map.of(
                 "contents", List.of(
-                        Map.of("parts", List.of(Map.of("text", prompt)))
+                        Map.of("parts", parts)
                 ),
                 "systemInstruction", Map.of(
                         "parts", List.of(Map.of("text", mode.systemInstruction()))
