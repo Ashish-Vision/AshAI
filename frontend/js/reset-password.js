@@ -504,30 +504,24 @@ document.addEventListener("DOMContentLoaded", () => {
             setSubmitLoading(true);
 
             try {
-                /*
-                 * Temporary frontend simulation.
-                 *
-                 * Later, replace this with:
-                 *
-                 * const token = new URLSearchParams(
-                 *     window.location.search
-                 * ).get("token");
-                 *
-                 * await fetch("/api/auth/reset-password", {
-                 *     method: "POST",
-                 *     headers: {
-                 *         "Content-Type": "application/json"
-                 *     },
-                 *     body: JSON.stringify({
-                 *         token,
-                 *         newPassword
-                 *     })
-                 * });
-                 */
+                const token = new URLSearchParams(
+                    window.location.search
+                ).get("token");
 
-                await new Promise((resolve) => {
-                    window.setTimeout(resolve, 1200);
+                const response = await fetch("http://localhost:8080/api/auth/reset-password", {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json"
+                    },
+                    body: JSON.stringify({
+                        token,
+                        newPassword
+                    })
                 });
+
+                if (!response.ok) {
+                    throw new Error("Password reset failed");
+                }
 
                 resetPasswordView.hidden = true;
                 passwordSuccessView.hidden = false;

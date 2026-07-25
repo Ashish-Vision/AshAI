@@ -242,23 +242,17 @@ document.addEventListener("DOMContentLoaded", () => {
             setSubmitLoading(true);
 
             try {
-                /*
-                 * Temporary frontend simulation.
-                 *
-                 * Later, replace this timeout with:
-                 *
-                 * await fetch("/api/auth/forgot-password", {
-                 *     method: "POST",
-                 *     headers: {
-                 *         "Content-Type": "application/json"
-                 *     },
-                 *     body: JSON.stringify({ email })
-                 * });
-                 */
-
-                await new Promise((resolve) => {
-                    window.setTimeout(resolve, 1200);
+                const response = await fetch("http://localhost:8080/api/auth/forgot-password", {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json"
+                    },
+                    body: JSON.stringify({ email })
                 });
+
+                if (!response.ok) {
+                    throw new Error("Forgot password request failed");
+                }
 
                 showCheckEmailView(email);
             } catch (error) {
@@ -294,16 +288,19 @@ document.addEventListener("DOMContentLoaded", () => {
             setResendLoading(true);
 
             try {
-                /*
-                 * Temporary frontend simulation.
-                 *
-                 * This will later call the same backend
-                 * forgot-password endpoint.
-                 */
-
-                await new Promise((resolve) => {
-                    window.setTimeout(resolve, 1000);
+                const response = await fetch("http://localhost:8080/api/auth/forgot-password", {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json"
+                    },
+                    body: JSON.stringify({
+                        email: currentEmail
+                    })
                 });
+
+                if (!response.ok) {
+                    throw new Error("Reset email resend failed");
+                }
 
                 resendMessage.textContent =
                     "A new reset link has been sent.";

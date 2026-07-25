@@ -1,5 +1,10 @@
 "use strict";
 
+import {
+    hasToken,
+    loginUser
+} from "./api.js";
+
 /* ==========================================================
    AUTH ELEMENTS
 ========================================================== */
@@ -7,16 +12,28 @@
 const loginForm = document.getElementById("loginForm");
 const emailInput = document.getElementById("email");
 const passwordInput = document.getElementById("password");
+const rememberMeInput = document.getElementById("rememberMe");
 
 const emailError = document.getElementById("emailError");
 const passwordError = document.getElementById("passwordError");
 const formMessage = document.getElementById("formMessage");
 
-const togglePasswordButton = document.getElementById("togglePassword");
+const togglePasswordButton =
+    document.getElementById("togglePassword");
+
 const loginButton = document.getElementById("loginButton");
 
-const buttonText = loginButton?.querySelector(".button-text");
-const socialButtons = document.querySelectorAll(".social-button");
+const buttonText =
+    loginButton?.querySelector(".button-text");
+
+const socialButtons =
+    document.querySelectorAll(".social-button");
+
+/* ==========================================================
+   PAGE CONFIGURATION
+========================================================== */
+
+const DASHBOARD_URL = "./dashboard.html";
 
 /* ==========================================================
    HELPERS
@@ -84,6 +101,14 @@ function hideFormMessage() {
     );
 }
 
+function redirectToDashboard() {
+    /*
+     * replace() prevents returning to the login page
+     * by pressing the browser Back button.
+     */
+    window.location.replace(DASHBOARD_URL);
+}
+
 /* ==========================================================
    PASSWORD VISIBILITY
 ========================================================== */
@@ -93,13 +118,17 @@ function togglePasswordVisibility() {
         return;
     }
 
-    const passwordIsHidden = passwordInput.type === "password";
+    const passwordIsHidden =
+        passwordInput.type === "password";
 
-    passwordInput.type = passwordIsHidden ? "text" : "password";
+    passwordInput.type =
+        passwordIsHidden ? "text" : "password";
 
     togglePasswordButton.setAttribute(
         "aria-label",
-        passwordIsHidden ? "Hide password" : "Show password"
+        passwordIsHidden
+            ? "Hide password"
+            : "Show password"
     );
 
     togglePasswordButton.setAttribute(
@@ -107,12 +136,14 @@ function togglePasswordVisibility() {
         String(passwordIsHidden)
     );
 
-    const toggleText = togglePasswordButton.querySelector(
-        ".password-toggle-text"
-    );
+    const toggleText =
+        togglePasswordButton.querySelector(
+            ".password-toggle-text"
+        );
 
     if (toggleText) {
-        toggleText.textContent = passwordIsHidden ? "Hide" : "Show";
+        toggleText.textContent =
+            passwordIsHidden ? "Hide" : "Show";
     }
 
     passwordInput.focus();
@@ -203,7 +234,11 @@ function setLoadingState(isLoading) {
     }
 
     loginButton.disabled = isLoading;
-    loginButton.classList.toggle("is-loading", isLoading);
+
+    loginButton.classList.toggle(
+        "is-loading",
+        isLoading
+    );
 
     loginButton.setAttribute(
         "aria-busy",
@@ -211,9 +246,10 @@ function setLoadingState(isLoading) {
     );
 
     if (buttonText) {
-        buttonText.textContent = isLoading
-            ? "Signing in..."
-            : "Continue";
+        buttonText.textContent =
+            isLoading
+                ? "Signing in..."
+                : "Continue";
     }
 
     if (emailInput) {
@@ -224,9 +260,17 @@ function setLoadingState(isLoading) {
         passwordInput.disabled = isLoading;
     }
 
+    if (rememberMeInput) {
+        rememberMeInput.disabled = isLoading;
+    }
+
     if (togglePasswordButton) {
         togglePasswordButton.disabled = isLoading;
     }
+
+    socialButtons.forEach((button) => {
+        button.disabled = isLoading;
+    });
 }
 
 /* ==========================================================
@@ -239,64 +283,67 @@ async function handleLoginSubmit(event) {
     hideFormMessage();
 
     if (!validateLoginForm()) {
-        const firstInvalidField = document.querySelector(
-            '.auth-form input[aria-invalid="true"]'
-        );
+        const firstInvalidField =
+            document.querySelector(
+                '.auth-form input[aria-invalid="true"]'
+            );
 
         firstInvalidField?.focus();
 
         return;
     }
 
-    setLoadingState(true);
-
     const loginData = {
         email: emailInput.value.trim(),
         password: passwordInput.value,
-        rememberMe: Boolean(
-            document.getElementById("rememberMe")?.checked
-        )
+        rememberMe: Boolean(rememberMeInput?.checked)
     };
 
+    setLoadingState(true);
+
     try {
+        await loginUser(loginData);
+
         /*
-         * Temporary frontend-only behaviour.
-         *
-         * Later this section will call the Spring Boot API:
-         *
-         * const response = await fetch(
-         *     "http://localhost:8080/api/auth/login",
-         *     {
-         *         method: "POST",
-         *         headers: {
-         *             "Content-Type": "application/json"
-         *         },
-         *         body: JSON.stringify(loginData)
-         *     }
-         * );
+         * Remove the password from the form immediately
+         * after successful authentication.
          */
-
-        await new Promise((resolve) => {
-            window.setTimeout(resolve, 1200);
-        });
-
-        console.log("Login data:", {
-            email: loginData.email,
-            rememberMe: loginData.rememberMe
-        });
+        passwordInput.value = "";
 
         showFormMessage(
-            "Login form validated successfully. Backend connection will be added later.",
+            "Login successful. Opening your workspace...",
             "success"
+        );
+
+        window.setTimeout(
+            redirectToDashboard,
+            700
         );
     } catch (error) {
         console.error("Login error:", error);
 
+        if (error.status === 401) {
+            setFieldError(
+                passwordInput,
+                passwordError,
+                "The email address or password is incorrect."
+            );
+
+            passwordInput.focus();
+        }
+
         showFormMessage(
+            error.message ||
             "Unable to sign in. Please try again."
         );
     } finally {
-        setLoadingState(false);
+        /*
+         * Do not reset the button during a successful redirect.
+         * The page will change after 700 milliseconds.
+         */
+        if (!hasToken()) {
+            setLoadingState(false);
+        }
     }
 }
 
@@ -312,12 +359,22 @@ function handleSocialLogin(event) {
     }
 
     const providerName =
-        provider.charAt(0).toUpperCase() + provider.slice(1);
+        provider.charAt(0).toUpperCase() +
+        provider.slice(1);
 
     showFormMessage(
-        `${providerName} login will be connected later.`,
-        "success"
+        `${providerName} authentication is not available yet.`
     );
+}
+
+/* ==========================================================
+   EXISTING SESSION
+========================================================== */
+
+function handleExistingSession() {
+    if (hasToken()) {
+        redirectToDashboard();
+    }
 }
 
 /* ==========================================================
@@ -329,8 +386,15 @@ togglePasswordButton?.addEventListener(
     togglePasswordVisibility
 );
 
-emailInput?.addEventListener("blur", validateEmail);
-passwordInput?.addEventListener("blur", validatePassword);
+emailInput?.addEventListener(
+    "blur",
+    validateEmail
+);
+
+passwordInput?.addEventListener(
+    "blur",
+    validatePassword
+);
 
 emailInput?.addEventListener("input", () => {
     hideFormMessage();
@@ -359,3 +423,9 @@ socialButtons.forEach((button) => {
         handleSocialLogin
     );
 });
+
+/* ==========================================================
+   INITIALIZATION
+========================================================== */
+
+handleExistingSession();

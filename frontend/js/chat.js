@@ -620,7 +620,7 @@ document.addEventListener("DOMContentLoaded", () => {
     =========================================================
     */
 
-    const showTemporaryResponse = () => {
+    const showTemporaryResponse = async (userPrompt = "") => {
         const area =
             createConversationArea();
 
@@ -661,106 +661,109 @@ document.addEventListener("DOMContentLoaded", () => {
         updateGeneratingState();
         scrollToLatestMessage();
 
-        const responseText = `## AshAI response preview
+        let responseText = "";
 
-Your upgraded frontend now supports:
+        try {
+            const token = localStorage.getItem("ashai_access_token") || sessionStorage.getItem("ashai_access_token");
+            const headers = { "Content-Type": "application/json" };
+            if (token) {
+                headers["Authorization"] = `Bearer ${token}`;
+            }
 
-- **Markdown formatting**
-- Lists and headings
-- Inline code such as \`System.out.println()\`
-- Fenced code blocks
-- A dedicated **Copy code** button
-- Streaming and Stop Generating
+            const modelSelectorBtn = document.querySelector(".model-selector");
+            const selectedModel = modelSelectorBtn ? modelSelectorBtn.textContent.trim() : "AshAI Gemini 2.0";
 
-\`\`\`java
-public class Main {
-    public static void main(String[] args) {
-        System.out.println("Hello from AshAI");
-    }
-}
-\`\`\`
+            const res = await fetch("http://localhost:8080/api/chat", {
+                method: "POST",
+                headers,
+                body: JSON.stringify({
+                    message: userPrompt || "Hello",
+                    conversationId: window.activeConversationId || null,
+                    model: selectedModel
+                })
+            });
 
-This is still a frontend demonstration. A real response will replace it after the Spring Boot AI endpoint is connected.`;
-
-        /*
-         * Initial typing-indicator delay.
-         */
-        activeStreamTimer =
-            window.setTimeout(() => {
-                if (!isGenerating) {
-                    return;
+            if (res.ok) {
+                const data = await res.json();
+                responseText = data.reply;
+                if (data.conversationId) {
+                    window.activeConversationId = data.conversationId;
                 }
+            } else {
+                responseText = "Sorry, I encountered an issue reaching the backend server. Please ensure you are logged in and the server is running.";
+            }
+        } catch (err) {
+            console.warn("Could not connect to backend AI server, using client fallback:", err);
+            responseText = `## AshAI Assistant Response\n\nI received your query: **"${userPrompt}"**.\n\nAshAI is currently running in local workspace mode. Make sure the backend Spring Boot app is running at \`http://localhost:8080\`.`;
+        }
 
+        if (!isGenerating) {
+            return;
+        }
+
+        typingMessage.classList.remove(
+            "is-typing"
+        );
+
+        typingMessage.classList.add(
+            "is-streaming"
+        );
+
+        paragraph.textContent = "";
+
+        let currentIndex = 0;
+
+        const streamResponse = () => {
+            if (!isGenerating) {
                 typingMessage.classList.remove(
-                    "is-typing"
-                );
-
-                typingMessage.classList.add(
                     "is-streaming"
                 );
 
-                paragraph.textContent = "";
+                activeStreamTimer = null;
 
-                let currentIndex = 0;
+                updateGeneratingState();
 
-                const streamResponse = () => {
-                    /*
-                     * Stop streaming immediately when
-                     * Stop Generating has been pressed.
-                     */
-                    if (!isGenerating) {
-                        typingMessage.classList.remove(
-                            "is-streaming"
-                        );
+                return;
+            }
 
-                        activeStreamTimer = null;
+            if (
+                currentIndex >=
+                responseText.length
+            ) {
+                typingMessage.classList.remove(
+                    "is-streaming"
+                );
 
-                        updateGeneratingState();
+                renderMarkdown(
+                    paragraph,
+                    responseText
+                );
 
-                        return;
-                    }
+                isGenerating = false;
+                activeStreamTimer = null;
 
-                    /*
-                     * Response completed.
-                     */
-                    if (
-                        currentIndex >=
-                        responseText.length
-                    ) {
-                        typingMessage.classList.remove(
-                            "is-streaming"
-                        );
+                updateGeneratingState();
+                scrollToLatestMessage();
+                loadRecentChats();
 
-                        renderMarkdown(
-                            paragraph,
-                            responseText
-                        );
+                return;
+            }
 
-                        isGenerating = false;
-                        activeStreamTimer = null;
+            paragraph.textContent +=
+                responseText[currentIndex];
 
-                        updateGeneratingState();
-                        scrollToLatestMessage();
+            currentIndex += 1;
 
-                        return;
-                    }
+            scrollToLatestMessage();
 
-                    paragraph.textContent +=
-                        responseText[currentIndex];
+            activeStreamTimer =
+                window.setTimeout(
+                    streamResponse,
+                    20
+                );
+        };
 
-                    currentIndex += 1;
-
-                    scrollToLatestMessage();
-
-                    activeStreamTimer =
-                        window.setTimeout(
-                            streamResponse,
-                            100
-                        );
-                };
-
-                streamResponse();
-            }, 1500);
+        streamResponse();
     };
 
     /*
@@ -807,7 +810,7 @@ This is still a frontend demonstration. A real response will replace it after th
         updateSendButton();
         scrollToLatestMessage();
 
-        showTemporaryResponse();
+        showTemporaryResponse(text);
 
         promptInput.focus();
     };
@@ -900,13 +903,7 @@ This is still a frontend demonstration. A real response will replace it after th
 
                     resizeTextarea();
                     updateSendButton();
-
-                    promptInput.focus();
-
-                    promptInput.setSelectionRange(
-                        promptInput.value.length,
-                        promptInput.value.length
-                    );
+                    sendMessage();
                 }
             );
         }
@@ -914,18 +911,94 @@ This is still a frontend demonstration. A real response will replace it after th
 
     /*
     =========================================================
-    NEW CHAT
+    NEW CHAT & CONVERSATION HISTORY
     =========================================================
     */
+
+    const loadRecentChats = async () => {
+        const historyContainer = document.getElementById("chatHistory");
+        if (!historyContainer) return;
+
+        try {
+            const token = localStorage.getItem("ashai_access_token") || sessionStorage.getItem("ashai_access_token");
+            if (!token) return;
+
+            const res = await fetch("http://localhost:8080/api/chat/history", {
+                headers: { "Authorization": `Bearer ${token}` }
+            });
+
+            if (!res.ok) return;
+            const summaries = await res.json();
+
+            // Clear static placeholders except section heading
+            const heading = historyContainer.querySelector(".sidebar-section-heading");
+            historyContainer.innerHTML = "";
+            if (heading) historyContainer.appendChild(heading);
+
+            summaries.forEach((item) => {
+                const btn = document.createElement("button");
+                btn.type = "button";
+                btn.className = `recent-chat-item ${item.conversationId === window.activeConversationId ? "active" : ""}`;
+                btn.innerHTML = `
+                    <span class="recent-chat-icon" aria-hidden="true">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M21 15a4 4 0 0 1-4 4H8l-5 3V7a4 4 0 0 1 4-4h10a4 4 0 0 1 4 4z"></path>
+                        </svg>
+                    </span>
+                    <span class="recent-chat-text">${item.title || "Chat"}</span>
+                `;
+                btn.addEventListener("click", () => loadConversation(item.conversationId));
+                historyContainer.appendChild(btn);
+            });
+        } catch (e) {
+            console.warn("Could not load recent chats:", e);
+        }
+    };
+
+    const loadConversation = async (conversationId) => {
+        stopGenerating();
+        window.activeConversationId = conversationId;
+        welcomeSection.hidden = true;
+
+        if (conversationArea) {
+            conversationArea.remove();
+        }
+        const area = createConversationArea();
+
+        try {
+            const token = localStorage.getItem("ashai_access_token") || sessionStorage.getItem("ashai_access_token");
+            const res = await fetch(`http://localhost:8080/api/chat/history/${conversationId}`, {
+                headers: { "Authorization": `Bearer ${token}` }
+            });
+
+            if (res.ok) {
+                const messages = await res.json();
+                messages.forEach(msg => {
+                    const msgElement = createMessage(msg.sender, "");
+                    const p = msgElement.querySelector("p");
+                    if (p) {
+                        if (msg.sender === "assistant") {
+                            renderMarkdown(p, msg.content);
+                        } else {
+                            p.textContent = msg.content;
+                        }
+                    }
+                    area.appendChild(msgElement);
+                });
+                scrollToLatestMessage();
+            }
+        } catch (err) {
+            console.error("Failed to load conversation history:", err);
+        }
+
+        loadRecentChats();
+    };
 
     newChatButton?.addEventListener(
         "click",
         () => {
-            /*
-             * Stop any active timer before removing
-             * the current conversation.
-             */
             stopGenerating();
+            window.activeConversationId = null;
 
             conversationArea?.remove();
             conversationArea = null;
@@ -938,8 +1011,102 @@ This is still a frontend demonstration. A real response will replace it after th
             updateSendButton();
 
             promptInput.focus();
+            loadRecentChats();
         }
     );
+
+    loadRecentChats();
+
+    /*
+    =========================================================
+    MODEL SELECTOR DROPDOWN
+    =========================================================
+    */
+
+    const modelSelectorBtn = document.getElementById("modelSelectorBtn");
+    const modelDropdownMenu = document.getElementById("modelDropdownMenu");
+    const selectedModelLabel = document.getElementById("selectedModelLabel");
+
+    if (modelSelectorBtn && modelDropdownMenu) {
+        modelSelectorBtn.addEventListener("click", (e) => {
+            e.stopPropagation();
+            modelDropdownMenu.hidden = !modelDropdownMenu.hidden;
+        });
+
+        document.addEventListener("click", () => {
+            if (modelDropdownMenu) modelDropdownMenu.hidden = true;
+        });
+
+        const optionBtns = modelDropdownMenu.querySelectorAll(".model-option-btn");
+        optionBtns.forEach(btn => {
+            btn.addEventListener("click", (e) => {
+                e.stopPropagation();
+                const modelName = btn.getAttribute("data-model");
+                if (selectedModelLabel) selectedModelLabel.textContent = modelName;
+                modelDropdownMenu.hidden = true;
+            });
+        });
+    }
+
+    /*
+    =========================================================
+    FILE ATTACHMENT
+    =========================================================
+    */
+
+    const attachFileBtn = document.getElementById("attachFileBtn");
+    const fileAttachInput = document.getElementById("fileAttachInput");
+
+    if (attachFileBtn && fileAttachInput) {
+        attachFileBtn.addEventListener("click", () => {
+            fileAttachInput.click();
+        });
+
+        fileAttachInput.addEventListener("change", (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = (event) => {
+                const content = event.target.result;
+                promptInput.value += `\n\n[Attached File: ${file.name}]\n\`\`\`\n${content}\n\`\`\`\n`;
+                resizeTextarea();
+                updateSendButton();
+                promptInput.focus();
+            };
+            reader.readAsText(file);
+        });
+    }
+
+    /*
+    =========================================================
+    SIDEBAR USER PROFILE SYNC
+    =========================================================
+    */
+
+    const loadUserProfile = async () => {
+        const userNameEl = document.getElementById("sidebarUserName");
+        const userAvatarEl = document.getElementById("sidebarUserAvatar");
+
+        try {
+            const token = localStorage.getItem("ashai_access_token") || sessionStorage.getItem("ashai_access_token");
+            if (!token) return;
+
+            const res = await fetch("http://localhost:8080/api/profile", {
+                headers: { "Authorization": `Bearer ${token}` }
+            });
+
+            if (res.ok) {
+                const user = await res.json();
+                if (userNameEl) userNameEl.textContent = user.fullName || "User Account";
+                if (userAvatarEl) userAvatarEl.textContent = (user.fullName || "A").charAt(0).toUpperCase();
+            }
+        } catch (err) {
+            console.warn("Could not load sidebar profile:", err);
+        }
+    };
+
+    loadUserProfile();
 
     /*
     =========================================================
@@ -1121,6 +1288,137 @@ This is still a frontend demonstration. A real response will replace it after th
     */
 
     sendButton.innerHTML = sendIcon;
+
+    /*
+    =========================================================
+    FILES, SAVED & CHATS INTERACTIVE VIEWS
+    =========================================================
+    */
+
+    const createInteractiveModal = (title, contentHtml) => {
+        let existingModal = document.getElementById("ashaiInteractiveModal");
+        if (existingModal) existingModal.remove();
+
+        const modal = document.createElement("div");
+        modal.id = "ashaiInteractiveModal";
+        modal.style.cssText = "position:fixed; top:0; left:0; width:100vw; height:100vh; background:rgba(0,0,0,0.6); display:flex; align-items:center; justify-content:center; z-index:9999; backdrop-filter:blur(4px);";
+        modal.innerHTML = `
+            <div style="background:var(--bg-card, #1e293b); color:inherit; width:90%; max-width:640px; max-height:85vh; border-radius:16px; border:1px solid var(--border-color, #334155); box-shadow:0 20px 50px rgba(0,0,0,0.5); display:flex; flex-direction:column; overflow:hidden;">
+                <div style="display:flex; justify-content:space-between; align-items:center; padding:20px 24px; border-bottom:1px solid var(--border-color, #334155);">
+                    <h3 style="margin:0; font-size:18px; font-weight:700;">${title}</h3>
+                    <button type="button" id="closeInteractiveModalBtn" style="background:transparent; border:none; color:inherit; font-size:24px; cursor:pointer; padding:0 8px;">&times;</button>
+                </div>
+                <div style="padding:24px; overflow-y:auto; flex:1;">
+                    ${contentHtml}
+                </div>
+            </div>
+        `;
+        document.body.appendChild(modal);
+        modal.querySelector("#closeInteractiveModalBtn").addEventListener("click", () => modal.remove());
+        modal.addEventListener("click", (e) => { if (e.target === modal) modal.remove(); });
+    };
+
+    const filesLink = document.getElementById("filesSidebarLink");
+    filesLink?.addEventListener("click", (e) => {
+        e.preventDefault();
+        createInteractiveModal("Workspace Files & Attachments", `
+            <p style="margin-top:0; opacity:0.8; font-size:14px;">Manage uploaded files, documents, and code attachments in your AshAI workspace.</p>
+            <div style="border:2px dashed var(--border-color, #334155); border-radius:12px; padding:32px; text-align:center; margin-bottom:20px;">
+                <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-bottom:8px; opacity:0.7;"><path d="M21.4 11.6l-8.9 8.9a6 6 0 0 1-8.5-8.5l9.6-9.6a4 4 0 0 1 5.7 5.7l-9.6 9.6a2 2 0 1 1-2.8-2.8l8.9-8.9"></path></svg>
+                <p style="margin:0 0 12px 0; font-weight:600;">Upload new document or code file</p>
+                <button type="button" id="modalUploadBtn" style="background:linear-gradient(135deg, #6366f1, #4f46e5); color:#fff; border:none; padding:8px 18px; border-radius:8px; font-weight:600; cursor:pointer;">Choose File</button>
+            </div>
+            <h4 style="margin:0 0 12px 0; font-size:15px;">Workspace Attachments</h4>
+            <ul style="list-style:none; padding:0; margin:0;">
+                <li style="padding:12px; background:var(--bg-main, #0f172a); border-radius:8px; margin-bottom:8px; display:flex; justify-content:space-between; align-items:center;">
+                    <div>
+                        <strong style="font-size:14px;">architecture.md</strong>
+                        <div style="font-size:12px; opacity:0.6;">Markdown Document • System Design</div>
+                    </div>
+                    <span style="font-size:12px; background:#10b98122; color:#10b981; padding:4px 8px; border-radius:4px; font-weight:600;">Active</span>
+                </li>
+                <li style="padding:12px; background:var(--bg-main, #0f172a); border-radius:8px; margin-bottom:8px; display:flex; justify-content:space-between; align-items:center;">
+                    <div>
+                        <strong style="font-size:14px;">api-design.md</strong>
+                        <div style="font-size:12px; opacity:0.6;">API Specification • Backend Routes</div>
+                    </div>
+                    <span style="font-size:12px; background:#10b98122; color:#10b981; padding:4px 8px; border-radius:4px; font-weight:600;">Active</span>
+                </li>
+            </ul>
+        `);
+
+        document.getElementById("modalUploadBtn")?.addEventListener("click", () => {
+            fileAttachInput?.click();
+            document.getElementById("ashaiInteractiveModal")?.remove();
+        });
+    });
+
+    const savedLink = document.getElementById("savedSidebarLink");
+    savedLink?.addEventListener("click", (e) => {
+        e.preventDefault();
+        createInteractiveModal("Saved Items & Code Snippets", `
+            <p style="margin-top:0; opacity:0.8; font-size:14px;">Your saved AI responses, code blocks, and bookmarked notes.</p>
+            <div style="display:flex; flex-direction:column; gap:12px;">
+                <div style="padding:16px; background:var(--bg-main, #0f172a); border-radius:12px; border:1px solid var(--border-color, #334155);">
+                    <div style="display:flex; justify-content:space-between; margin-bottom:8px;">
+                        <span style="font-size:12px; font-weight:700; color:#6366f1;">JAVA COMPONENT</span>
+                        <span style="font-size:12px; opacity:0.6;">Saved today</span>
+                    </div>
+                    <pre style="margin:0; font-family:monospace; font-size:13px; background:rgba(0,0,0,0.3); padding:10px; border-radius:6px;">public class SecurityConfig { ... }</pre>
+                </div>
+                <div style="padding:16px; background:var(--bg-main, #0f172a); border-radius:12px; border:1px solid var(--border-color, #334155);">
+                    <div style="display:flex; justify-content:space-between; margin-bottom:8px;">
+                        <span style="font-size:12px; font-weight:700; color:#10b981;">AI SUMMARY</span>
+                        <span style="font-size:12px; opacity:0.6;">Saved today</span>
+                    </div>
+                    <p style="margin:0; font-size:13px; opacity:0.9;">System Architecture: Decoupled Spring Boot REST API & Vanilla Web Client.</p>
+                </div>
+            </div>
+        `);
+    });
+
+    const viewAllChatsBtn = document.querySelector(".sidebar-small-button");
+    viewAllChatsBtn?.addEventListener("click", async () => {
+        try {
+            const token = localStorage.getItem("ashai_access_token") || sessionStorage.getItem("ashai_access_token");
+            const res = await fetch("http://localhost:8080/api/chat/history", {
+                headers: { "Authorization": `Bearer ${token}` }
+            });
+            const summaries = res.ok ? await res.json() : [];
+
+            let listHtml = summaries.map((item, idx) => `
+                <div style="display:flex; justify-content:space-between; align-items:center; padding:12px; background:var(--bg-main, #0f172a); border-radius:8px; margin-bottom:8px;">
+                    <div style="cursor:pointer; flex:1;" onclick="window.selectModalChat('${item.conversationId}')">
+                        <strong style="font-size:14px; display:block;">${item.title || 'Conversation ' + (idx + 1)}</strong>
+                        <span style="font-size:11px; opacity:0.6;">ID: ${item.conversationId.substring(0, 8)}...</span>
+                    </div>
+                    <button type="button" style="background:#ef444422; color:#ef4444; border:none; padding:6px 12px; border-radius:6px; font-weight:600; cursor:pointer;" onclick="window.deleteModalChat('${item.conversationId}')">Delete</button>
+                </div>
+            `).join("");
+
+            if (!summaries.length) {
+                listHtml = `<p style="text-align:center; opacity:0.7;">No active conversations found.</p>`;
+            }
+
+            createInteractiveModal("All Recent Conversations", listHtml);
+
+            window.selectModalChat = (id) => {
+                loadConversation(id);
+                document.getElementById("ashaiInteractiveModal")?.remove();
+            };
+
+            window.deleteModalChat = async (id) => {
+                await fetch(`http://localhost:8080/api/chat/history/${id}`, {
+                    method: "DELETE",
+                    headers: { "Authorization": `Bearer ${token}` }
+                });
+                document.getElementById("ashaiInteractiveModal")?.remove();
+                loadRecentChats();
+            };
+        } catch (err) {
+            console.error("Failed to fetch all chats:", err);
+        }
+    });
 
     resizeTextarea();
     updateGeneratingState();

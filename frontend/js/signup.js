@@ -1,5 +1,7 @@
 "use strict";
 
+import { registerUser } from "./api.js";
+
 /* =========================================================
    SIGNUP PAGE
 ========================================================= */
@@ -11,33 +13,35 @@ document.addEventListener("DOMContentLoaded", () => {
         return;
     }
 
-    const signupView = document.getElementById("signupView");
-    const signupSuccessView = document.getElementById(
-        "signupSuccessView"
-    );
-
     const fullNameInput = document.getElementById("fullName");
     const emailInput = document.getElementById("signupEmail");
+
     const passwordInput = document.getElementById(
         "signupPassword"
     );
+
     const confirmPasswordInput = document.getElementById(
         "signupConfirmPassword"
     );
+
     const termsInput = document.getElementById("acceptTerms");
 
     const fullNameError = document.getElementById(
         "fullNameError"
     );
+
     const emailError = document.getElementById(
         "signupEmailError"
     );
+
     const passwordError = document.getElementById(
         "signupPasswordError"
     );
+
     const confirmPasswordError = document.getElementById(
         "signupConfirmPasswordError"
     );
+
     const termsError = document.getElementById("termsError");
 
     const matchMessage = document.getElementById(
@@ -47,6 +51,7 @@ document.addEventListener("DOMContentLoaded", () => {
     const strengthLabel = document.getElementById(
         "signupStrengthLabel"
     );
+
     const strengthBar = document.getElementById(
         "signupStrengthBar"
     );
@@ -58,24 +63,13 @@ document.addEventListener("DOMContentLoaded", () => {
     const togglePasswordButton = document.getElementById(
         "toggleSignupPassword"
     );
+
     const toggleConfirmButton = document.getElementById(
         "toggleSignupConfirmPassword"
     );
 
     const formMessage = document.getElementById(
         "formMessage"
-    );
-
-    const submittedEmail = document.getElementById(
-        "signupSubmittedEmail"
-    );
-
-    const resendButton = document.getElementById(
-        "signupResendButton"
-    );
-
-    const resendMessage = document.getElementById(
-        "signupResendMessage"
     );
 
     const googleButton = document.getElementById(
@@ -90,22 +84,23 @@ document.addEventListener("DOMContentLoaded", () => {
         length: document.getElementById(
             "signupLengthRequirement"
         ),
+
         uppercase: document.getElementById(
             "signupUppercaseRequirement"
         ),
+
         lowercase: document.getElementById(
             "signupLowercaseRequirement"
         ),
+
         number: document.getElementById(
             "signupNumberRequirement"
         ),
+
         special: document.getElementById(
             "signupSpecialRequirement"
         )
     };
-
-    let currentEmail = "";
-    let resendTimer = null;
 
     /* =====================================================
        GENERAL HELPERS
@@ -137,7 +132,14 @@ document.addEventListener("DOMContentLoaded", () => {
         ).every(Boolean);
     };
 
-    const clearInputError = (input, errorElement) => {
+    const clearInputError = (
+        input,
+        errorElement
+    ) => {
+        if (!input || !errorElement) {
+            return;
+        }
+
         errorElement.textContent = "";
         input.classList.remove("input-error");
         input.removeAttribute("aria-invalid");
@@ -148,6 +150,10 @@ document.addEventListener("DOMContentLoaded", () => {
         errorElement,
         message
     ) => {
+        if (!input || !errorElement) {
+            return;
+        }
+
         errorElement.textContent = message;
         input.classList.add("input-error");
 
@@ -158,6 +164,10 @@ document.addEventListener("DOMContentLoaded", () => {
     };
 
     const hideFormMessage = () => {
+        if (!formMessage) {
+            return;
+        }
+
         formMessage.hidden = true;
         formMessage.textContent = "";
 
@@ -167,7 +177,14 @@ document.addEventListener("DOMContentLoaded", () => {
         );
     };
 
-    const showFormMessage = (message, type) => {
+    const showFormMessage = (
+        message,
+        type
+    ) => {
+        if (!formMessage) {
+            return;
+        }
+
         formMessage.textContent = message;
         formMessage.hidden = false;
 
@@ -184,9 +201,14 @@ document.addEventListener("DOMContentLoaded", () => {
     ===================================================== */
 
     const validateFullName = () => {
-        const name = normalizeName(fullNameInput.value);
+        const name = normalizeName(
+            fullNameInput.value
+        );
 
-        clearInputError(fullNameInput, fullNameError);
+        clearInputError(
+            fullNameInput,
+            fullNameError
+        );
 
         if (!name) {
             showInputError(
@@ -238,9 +260,14 @@ document.addEventListener("DOMContentLoaded", () => {
     ===================================================== */
 
     const validateEmail = () => {
-        const email = emailInput.value.trim();
+        const email = emailInput.value
+            .trim()
+            .toLowerCase();
 
-        clearInputError(emailInput, emailError);
+        clearInputError(
+            emailInput,
+            emailError
+        );
 
         if (!email) {
             showInputError(
@@ -262,11 +289,13 @@ document.addEventListener("DOMContentLoaded", () => {
             return false;
         }
 
+        emailInput.value = email;
+
         return true;
     };
 
     /* =====================================================
-       PASSWORD REQUIREMENTS AND STRENGTH
+       PASSWORD REQUIREMENTS
     ===================================================== */
 
     const updateRequirementItem = (
@@ -287,7 +316,9 @@ document.addEventListener("DOMContentLoaded", () => {
         );
 
         if (icon) {
-            icon.textContent = isComplete ? "✓" : "○";
+            icon.textContent = isComplete
+                ? "✓"
+                : "○";
         }
     };
 
@@ -304,6 +335,10 @@ document.addEventListener("DOMContentLoaded", () => {
             }
         );
     };
+
+    /* =====================================================
+       PASSWORD STRENGTH
+    ===================================================== */
 
     const calculateStrength = (password) => {
         if (!password) {
@@ -345,11 +380,17 @@ document.addEventListener("DOMContentLoaded", () => {
     };
 
     const updateStrength = (password) => {
-        const strength = calculateStrength(password);
+        if (!strengthLabel || !strengthBar) {
+            return;
+        }
 
-        strengthLabel.textContent = strength.label;
+        const strength =
+            calculateStrength(password);
+
+        strengthLabel.textContent =
+            strength.label;
+
         strengthLabel.className = "";
-
         strengthBar.className = "strength-bar";
 
         if (strength.className) {
@@ -400,6 +441,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
     const validateConfirmPassword = () => {
         const password = passwordInput.value;
+
         const confirmedPassword =
             confirmPasswordInput.value;
 
@@ -408,12 +450,14 @@ document.addEventListener("DOMContentLoaded", () => {
             confirmPasswordError
         );
 
-        matchMessage.textContent = "";
+        if (matchMessage) {
+            matchMessage.textContent = "";
 
-        matchMessage.classList.remove(
-            "success",
-            "error"
-        );
+            matchMessage.classList.remove(
+                "success",
+                "error"
+            );
+        }
 
         if (!confirmedPassword) {
             showInputError(
@@ -432,18 +476,26 @@ document.addEventListener("DOMContentLoaded", () => {
                 "Passwords do not match."
             );
 
-            matchMessage.textContent =
-                "Passwords do not match.";
+            if (matchMessage) {
+                matchMessage.textContent =
+                    "Passwords do not match.";
 
-            matchMessage.classList.add("error");
+                matchMessage.classList.add(
+                    "error"
+                );
+            }
 
             return false;
         }
 
-        matchMessage.textContent =
-            "Passwords match.";
+        if (matchMessage) {
+            matchMessage.textContent =
+                "Passwords match.";
 
-        matchMessage.classList.add("success");
+            matchMessage.classList.add(
+                "success"
+            );
+        }
 
         return true;
     };
@@ -453,11 +505,15 @@ document.addEventListener("DOMContentLoaded", () => {
     ===================================================== */
 
     const validateTerms = () => {
-        termsError.textContent = "";
+        if (termsError) {
+            termsError.textContent = "";
+        }
 
         if (!termsInput.checked) {
-            termsError.textContent =
-                "Please accept the Terms of Service and Privacy Policy.";
+            if (termsError) {
+                termsError.textContent =
+                    "Please accept the Terms of Service and Privacy Policy.";
+            }
 
             return false;
         }
@@ -474,35 +530,43 @@ document.addEventListener("DOMContentLoaded", () => {
         input,
         description
     ) => {
-        button.addEventListener("click", () => {
-            const isHidden =
-                input.type === "password";
+        if (!button || !input) {
+            return;
+        }
 
-            input.type = isHidden
-                ? "text"
-                : "password";
+        button.addEventListener(
+            "click",
+            () => {
+                const isHidden =
+                    input.type === "password";
 
-            button.setAttribute(
-                "aria-pressed",
-                String(isHidden)
-            );
+                input.type = isHidden
+                    ? "text"
+                    : "password";
 
-            button.setAttribute(
-                "aria-label",
-                `${isHidden ? "Hide" : "Show"} ${description}`
-            );
+                button.setAttribute(
+                    "aria-pressed",
+                    String(isHidden)
+                );
 
-            const text = button.querySelector(
-                ".password-toggle-text"
-            );
+                button.setAttribute(
+                    "aria-label",
+                    `${isHidden ? "Hide" : "Show"} ${description}`
+                );
 
-            if (text) {
-                text.textContent =
-                    isHidden ? "Hide" : "Show";
+                const text = button.querySelector(
+                    ".password-toggle-text"
+                );
+
+                if (text) {
+                    text.textContent = isHidden
+                        ? "Hide"
+                        : "Show";
+                }
+
+                input.focus();
             }
-
-            input.focus();
-        });
+        );
     };
 
     configurePasswordToggle(
@@ -518,7 +582,7 @@ document.addEventListener("DOMContentLoaded", () => {
     );
 
     /* =====================================================
-       LOADING STATES
+       LOADING STATE
     ===================================================== */
 
     const setSignupLoading = (loading) => {
@@ -535,81 +599,86 @@ document.addEventListener("DOMContentLoaded", () => {
         );
     };
 
-    const setResendLoading = (loading) => {
-        resendButton.disabled = loading;
-
-        resendButton.classList.toggle(
-            "is-loading",
-            loading
-        );
-
-        resendButton.setAttribute(
-            "aria-busy",
-            String(loading)
-        );
-    };
-
     /* =====================================================
        INPUT EVENTS
     ===================================================== */
 
-    fullNameInput.addEventListener("input", () => {
-        hideFormMessage();
+    fullNameInput.addEventListener(
+        "input",
+        () => {
+            hideFormMessage();
 
-        if (fullNameError.textContent) {
+            if (fullNameError.textContent) {
+                clearInputError(
+                    fullNameInput,
+                    fullNameError
+                );
+            }
+        }
+    );
+
+    fullNameInput.addEventListener(
+        "blur",
+        () => {
+            if (fullNameInput.value.trim()) {
+                validateFullName();
+            }
+        }
+    );
+
+    emailInput.addEventListener(
+        "input",
+        () => {
+            hideFormMessage();
+
+            if (emailError.textContent) {
+                clearInputError(
+                    emailInput,
+                    emailError
+                );
+            }
+        }
+    );
+
+    emailInput.addEventListener(
+        "blur",
+        () => {
+            if (emailInput.value.trim()) {
+                validateEmail();
+            }
+        }
+    );
+
+    passwordInput.addEventListener(
+        "input",
+        () => {
+            const password =
+                passwordInput.value;
+
+            hideFormMessage();
+
             clearInputError(
-                fullNameInput,
-                fullNameError
+                passwordInput,
+                passwordError
             );
+
+            updateRequirements(password);
+            updateStrength(password);
+
+            if (confirmPasswordInput.value) {
+                validateConfirmPassword();
+            }
         }
-    });
+    );
 
-    fullNameInput.addEventListener("blur", () => {
-        if (fullNameInput.value.trim()) {
-            validateFullName();
+    passwordInput.addEventListener(
+        "blur",
+        () => {
+            if (passwordInput.value) {
+                validatePassword();
+            }
         }
-    });
-
-    emailInput.addEventListener("input", () => {
-        hideFormMessage();
-
-        if (emailError.textContent) {
-            clearInputError(
-                emailInput,
-                emailError
-            );
-        }
-    });
-
-    emailInput.addEventListener("blur", () => {
-        if (emailInput.value.trim()) {
-            validateEmail();
-        }
-    });
-
-    passwordInput.addEventListener("input", () => {
-        const password = passwordInput.value;
-
-        hideFormMessage();
-
-        clearInputError(
-            passwordInput,
-            passwordError
-        );
-
-        updateRequirements(password);
-        updateStrength(password);
-
-        if (confirmPasswordInput.value) {
-            validateConfirmPassword();
-        }
-    });
-
-    passwordInput.addEventListener("blur", () => {
-        if (passwordInput.value) {
-            validatePassword();
-        }
-    });
+    );
 
     confirmPasswordInput.addEventListener(
         "input",
@@ -621,7 +690,14 @@ document.addEventListener("DOMContentLoaded", () => {
                 confirmPasswordError
             );
 
-            matchMessage.textContent = "";
+            if (matchMessage) {
+                matchMessage.textContent = "";
+
+                matchMessage.classList.remove(
+                    "success",
+                    "error"
+                );
+            }
 
             if (confirmPasswordInput.value) {
                 validateConfirmPassword();
@@ -629,9 +705,14 @@ document.addEventListener("DOMContentLoaded", () => {
         }
     );
 
-    termsInput.addEventListener("change", () => {
-        termsError.textContent = "";
-    });
+    termsInput.addEventListener(
+        "change",
+        () => {
+            if (termsError) {
+                termsError.textContent = "";
+            }
+        }
+    );
 
     /* =====================================================
        FORM SUBMISSION
@@ -644,12 +725,20 @@ document.addEventListener("DOMContentLoaded", () => {
 
             hideFormMessage();
 
-            const nameValid = validateFullName();
-            const emailValid = validateEmail();
-            const passwordValid = validatePassword();
+            const nameValid =
+                validateFullName();
+
+            const emailValid =
+                validateEmail();
+
+            const passwordValid =
+                validatePassword();
+
             const confirmationValid =
                 validateConfirmPassword();
-            const termsValid = validateTerms();
+
+            const termsValid =
+                validateTerms();
 
             if (
                 !nameValid ||
@@ -676,50 +765,58 @@ document.addEventListener("DOMContentLoaded", () => {
                 fullName: normalizeName(
                     fullNameInput.value
                 ),
+
                 email: emailInput.value
                     .trim()
                     .toLowerCase(),
+
                 password: passwordInput.value
             };
 
             setSignupLoading(true);
 
             try {
-                /*
-                 * Temporary frontend simulation.
-                 *
-                 * Later replace this with:
-                 *
-                 * await fetch("/api/auth/signup", {
-                 *     method: "POST",
-                 *     headers: {
-                 *         "Content-Type": "application/json"
-                 *     },
-                 *     body: JSON.stringify(signupData)
-                 * });
-                 */
+                await registerUser(signupData);
 
-                await new Promise((resolve) => {
-                    window.setTimeout(resolve, 1300);
-                });
+                passwordInput.value = "";
+                confirmPasswordInput.value = "";
 
-                currentEmail = signupData.email;
-                submittedEmail.textContent = currentEmail;
+                updateRequirements("");
+                updateStrength("");
 
-                signupView.hidden = true;
-                signupSuccessView.hidden = false;
+                if (matchMessage) {
+                    matchMessage.textContent = "";
+                    matchMessage.className = "";
+                }
 
-                window.scrollTo({
-                    top: 0,
-                    behavior: "smooth"
-                });
+                showFormMessage(
+                    "Account created successfully. Redirecting to login...",
+                    "success"
+                );
+
+                window.setTimeout(() => {
+                    window.location.replace(
+                        "./login.html"
+                    );
+                }, 1500);
             } catch (error) {
                 console.error(
                     "Signup request failed:",
                     error
                 );
 
+                if (error.status === 409) {
+                    showInputError(
+                        emailInput,
+                        emailError,
+                        "An account with this email address already exists."
+                    );
+
+                    emailInput.focus();
+                }
+
                 showFormMessage(
+                    error.message ||
                     "We couldn't create your account. Please try again.",
                     "error"
                 );
@@ -730,77 +827,32 @@ document.addEventListener("DOMContentLoaded", () => {
     );
 
     /* =====================================================
-       RESEND VERIFICATION EMAIL
+       SOCIAL SIGNUP PLACEHOLDERS
     ===================================================== */
 
-    resendButton.addEventListener(
-        "click",
-        async () => {
-            if (!currentEmail) {
-                return;
-            }
-
-            resendMessage.textContent = "";
-            resendMessage.classList.remove(
-                "success",
-                "error"
-            );
-
-            setResendLoading(true);
-
-            try {
-                await new Promise((resolve) => {
-                    window.setTimeout(resolve, 1000);
-                });
-
-                resendMessage.textContent =
-                    "A new verification email has been sent.";
-
-                resendMessage.classList.add("success");
-
-                resendButton.disabled = true;
-
-                if (resendTimer) {
-                    window.clearTimeout(resendTimer);
-                }
-
-                resendTimer = window.setTimeout(() => {
-                    resendButton.disabled = false;
-                    resendMessage.textContent = "";
-                }, 5000);
-            } catch (error) {
-                console.error(
-                    "Verification resend failed:",
-                    error
+    if (googleButton) {
+        googleButton.addEventListener(
+            "click",
+            () => {
+                showFormMessage(
+                    "Google signup will be connected later.",
+                    "success"
                 );
-
-                resendMessage.textContent =
-                    "Unable to resend the email. Please try again.";
-
-                resendMessage.classList.add("error");
-            } finally {
-                setResendLoading(false);
             }
-        }
-    );
-
-    /* =====================================================
-       SOCIAL LOGIN PLACEHOLDERS
-    ===================================================== */
-
-    googleButton.addEventListener("click", () => {
-        showFormMessage(
-            "Google signup will be connected with the backend later.",
-            "success"
         );
-    });
+    }
 
-    githubButton.addEventListener("click", () => {
-        showFormMessage(
-            "GitHub signup will be connected with the backend later.",
-            "success"
+    if (githubButton) {
+        githubButton.addEventListener(
+            "click",
+            () => {
+                showFormMessage(
+                    "GitHub signup will be connected later.",
+                    "success"
+                );
+            }
         );
-    });
+    }
 
     /* =====================================================
        INITIAL STATE

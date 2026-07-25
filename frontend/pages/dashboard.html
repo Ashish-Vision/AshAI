@@ -99,7 +99,7 @@
                         <span>Chats</span>
                     </a>
 
-                    <a class="sidebar-link" href="#files">
+                    <a class="sidebar-link" href="#files" id="filesSidebarLink">
                         <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor"
                             stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                             <path d="M3 6a2 2 0 0 1 2-2h5l2 2h7a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path>
@@ -108,7 +108,7 @@
                         <span>Files</span>
                     </a>
 
-                    <a class="sidebar-link" href="#saved">
+                    <a class="sidebar-link" href="#saved" id="savedSidebarLink">
                         <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor"
                             stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                             <path d="M6 3h12a1 1 0 0 1 1 1v17l-7-4-7 4V4a1 1 0 0 1 1-1z"></path>
@@ -191,12 +191,12 @@
                 </a>
 
                 <a class="sidebar-profile" href="./profile.html">
-                    <span class="sidebar-profile-avatar" aria-hidden="true">
-                        AM
+                    <span class="sidebar-profile-avatar" id="sidebarUserAvatar" aria-hidden="true">
+                        A
                     </span>
 
                     <span class="sidebar-profile-details">
-                        <strong>Ashish</strong>
+                        <strong id="sidebarUserName">User Account</strong>
                         <span>View profile</span>
                     </span>
 
@@ -397,9 +397,9 @@
 
                         <div class="chat-composer-toolbar">
 
-                            <div class="chat-composer-left">
-
-                                <button type="button" class="composer-tool-button" aria-label="Attach a file">
+                            <div class="chat-composer-left" style="position: relative;">
+                                <input type="file" id="fileAttachInput" style="display: none;">
+                                <button type="button" class="composer-tool-button" id="attachFileBtn" aria-label="Attach a file">
                                     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor"
                                         stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
                                         aria-hidden="true">
@@ -409,9 +409,9 @@
                                     </svg>
                                 </button>
 
-                                <button type="button" class="model-selector">
+                                <button type="button" class="model-selector" id="modelSelectorBtn">
                                     <span class="model-status"></span>
-                                    AshAI Standard
+                                    <span id="selectedModelLabel">AshAI Standard</span>
 
                                     <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor"
                                         stroke-width="2" aria-hidden="true">
@@ -419,6 +419,20 @@
                                     </svg>
                                 </button>
 
+                                <div id="modelDropdownMenu" class="model-dropdown-menu" hidden style="position: absolute; bottom: 100%; left: 40px; margin-bottom: 8px; background: var(--bg-card, #1e293b); border: 1px solid var(--border-color, #334155); border-radius: 12px; box-shadow: 0 10px 25px rgba(0,0,0,0.3); padding: 8px; min-width: 220px; z-index: 100;">
+                                    <button type="button" class="model-option-btn" data-model="AshAI Standard" style="width:100%; text-align:left; padding: 10px 12px; background: transparent; border: none; color: inherit; border-radius: 6px; cursor: pointer; display: flex; flex-direction: column;">
+                                        <strong style="font-size: 14px;">⚡ AshAI Standard</strong>
+                                        <span style="font-size: 11px; opacity: 0.7;">Gemini 2.0 Flash — Fast & responsive</span>
+                                    </button>
+                                    <button type="button" class="model-option-btn" data-model="AshAI Pro" style="width:100%; text-align:left; padding: 10px 12px; background: transparent; border: none; color: inherit; border-radius: 6px; cursor: pointer; display: flex; flex-direction: column;">
+                                        <strong style="font-size: 14px;">🧠 AshAI Pro</strong>
+                                        <span style="font-size: 11px; opacity: 0.7;">Gemini 1.5 Pro — Complex reasoning</span>
+                                    </button>
+                                    <button type="button" class="model-option-btn" data-model="AshAI Code Expert" style="width:100%; text-align:left; padding: 10px 12px; background: transparent; border: none; color: inherit; border-radius: 6px; cursor: pointer; display: flex; flex-direction: column;">
+                                        <strong style="font-size: 14px;">💻 AshAI Code Expert</strong>
+                                        <span style="font-size: 11px; opacity: 0.7;">Optimized for code generation</span>
+                                    </button>
+                                </div>
                             </div>
 
                             <button type="submit" class="send-message-button" aria-label="Send message">

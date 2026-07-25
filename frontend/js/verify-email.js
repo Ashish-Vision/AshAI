@@ -57,28 +57,16 @@ document.addEventListener("DOMContentLoaded", () => {
 
     const verifyEmail = async () => {
         try {
-            /*
-             * Temporary frontend simulation.
-             *
-             * Later replace with:
-             *
-             * const response = await fetch(
-             *     `/api/auth/verify-email?token=${encodeURIComponent(token)}`
-             * );
-             *
-             * if (!response.ok) {
-             *     throw new Error("Verification failed");
-             * }
-             */
+            if (!token) {
+                throw new Error("No token provided");
+            }
 
-            await new Promise((resolve) => {
-                window.setTimeout(resolve, 1400);
-            });
+            const response = await fetch(
+                `http://localhost:8080/api/auth/verify-email?token=${encodeURIComponent(token)}`
+            );
 
-            if (!token || token === "invalid") {
-                throw new Error(
-                    "Invalid verification token"
-                );
+            if (!response.ok) {
+                throw new Error("Verification failed");
             }
 
             showView(successView);
@@ -104,9 +92,20 @@ document.addEventListener("DOMContentLoaded", () => {
             setResendLoading(true);
 
             try {
-                await new Promise((resolve) => {
-                    window.setTimeout(resolve, 1000);
-                });
+                if (!token) {
+                    throw new Error("No token provided");
+                }
+
+                const response = await fetch(
+                    `http://localhost:8080/api/auth/resend-verification?token=${encodeURIComponent(token)}`,
+                    {
+                        method: "POST"
+                    }
+                );
+
+                if (!response.ok) {
+                    throw new Error("Verification resend failed");
+                }
 
                 verificationMessage.textContent =
                     "A new verification email has been sent.";
