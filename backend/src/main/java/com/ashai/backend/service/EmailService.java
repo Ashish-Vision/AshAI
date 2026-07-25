@@ -25,6 +25,9 @@ public class EmailService {
     @Value("${app.mail.from:}")
     private String fromAddress;
 
+    @Value("${app.mail.brevo-api-key:}")
+    private String brevoApiKey;
+
     @Value("${app.mail.resend-api-key:}")
     private String resendApiKey;
 
@@ -37,10 +40,12 @@ public class EmailService {
     @Value("${app.frontend-url:http://localhost:5500}")
     private String frontendUrl;
 
+    private final RestClient brevoClient;
     private final RestClient resendClient;
 
     public EmailService(JavaMailSender mailSender) {
         this.mailSender = mailSender;
+        this.brevoClient = RestClient.create("https://api.brevo.com/v3");
         this.resendClient = RestClient.create("https://api.resend.com");
     }
 
@@ -83,6 +88,7 @@ public class EmailService {
     }
 
     public void requireConfigured() {
+        boolean brevoConfigured = brevoApiKey != null && !brevoApiKey.isBlank();
         boolean resendConfigured = resendApiKey != null && !resendApiKey.isBlank();
         boolean smtpConfigured = smtpUsername != null
                 && !smtpUsername.isBlank()
@@ -92,9 +98,9 @@ public class EmailService {
         if (!mailEnabled
                 || fromAddress == null
                 || fromAddress.isBlank()
-                || (!resendConfigured && !smtpConfigured)) {
+                || (!brevoConfigured && !resendConfigured && !smtpConfigured)) {
             throw new EmailDeliveryException(
-                    "Email delivery is not configured. Set RESEND_API_KEY and MAIL_FROM, then restart the backend."
+                    "Email delivery is not configured. Set BREVO_API_KEY and MAIL_FROM, then restart the backend."
             );
         }
     }
@@ -102,12 +108,43 @@ public class EmailService {
     private void send(String recipient, String subject, String body) {
         requireConfigured();
 
+        if (brevoApiKey != null && !brevoApiKey.isBlank()) {
+            sendWithBrevo(recipient, subject, body);
+            return;
+        }
+
         if (resendApiKey != null && !resendApiKey.isBlank()) {
             sendWithResend(recipient, subject, body);
             return;
         }
 
         sendWithSmtp(recipient, subject, body);
+    }
+
+    private void sendWithBrevo(String recipient, String subject, String body) {
+        try {
+            brevoClient.post()
+                    .uri("/smtp/email")
+                    .header("api-key", brevoApiKey)
+                    .body(Map.of(
+                            "sender", Map.of(
+                                    "name", extractSenderName(),
+                                    "email", extractSenderEmail()
+                            ),
+                            "to", List.of(Map.of("email", recipient)),
+                            "subject", subject,
+                            "textContent", body
+                    ))
+                    .retrieve()
+                    .toBodilessEntity();
+            log.info("Email sent through Brevo to {}", maskEmail(recipient));
+        } catch (RestClientException exception) {
+            log.error("Brevo email delivery failed for {}", maskEmail(recipient));
+            throw new EmailDeliveryException(
+                    "The verification email could not be sent. Please try again later.",
+                    exception
+            );
+        }
     }
 
     private void sendWithResend(String recipient, String subject, String body) {
@@ -158,5 +195,25 @@ public class EmailService {
             return "***";
         }
         return email.charAt(0) + "***" + email.substring(separator);
+    }
+
+    private String extractSenderName() {
+        int openingBracket = fromAddress.indexOf('<');
+        if (openingBracket > 0) {
+            String name = fromAddress.substring(0, openingBracket).trim();
+            if (!name.isBlank()) {
+                return name;
+            }
+        }
+        return "AshAI";
+    }
+
+    private String extractSenderEmail() {
+        int openingBracket = fromAddress.indexOf('<');
+        int closingBracket = fromAddress.indexOf('>', openingBracket + 1);
+        if (openingBracket >= 0 && closingBracket > openingBracket) {
+            return fromAddress.substring(openingBracket + 1, closingBracket).trim();
+        }
+        return fromAddress.trim();
     }
 }
