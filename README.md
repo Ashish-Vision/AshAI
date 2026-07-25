@@ -43,11 +43,8 @@ export GITHUB_CLIENT_SECRET="your-github-client-secret"
 export FRONTEND_URL="http://localhost:5500"
 export JWT_SECRET="a-private-base64-encoded-key-of-at-least-32-bytes"
 export MAIL_ENABLED="true"
-export MAIL_FROM="your-address@gmail.com"
-export SMTP_HOST="smtp.gmail.com"
-export SMTP_PORT="587"
-export SMTP_USERNAME="your-address@gmail.com"
-export SMTP_PASSWORD="your-google-app-password"
+export MAIL_FROM="AshAI <onboarding@resend.dev>"
+export RESEND_API_KEY="your-resend-api-key"
 ```
 
 Register these authorization callback URLs with the providers:
@@ -61,3 +58,9 @@ remain in environment variables and must never be committed.
 For deployment, replace `FRONTEND_URL` with the public HTTPS frontend origin and
 register the public OAuth callback URLs. The included Nginx container proxies
 `/api`, `/oauth2`, and `/login/oauth2` to the backend for same-origin requests.
+
+Resend's onboarding sender is suitable for testing with the email address that
+owns the Resend account. Before allowing public registrations, verify a domain
+in Resend and change `MAIL_FROM` to an address on that domain. SMTP settings
+remain available as an optional fallback for local development or hosts that
+allow SMTP connections.

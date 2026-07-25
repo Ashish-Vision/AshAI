@@ -88,4 +88,16 @@ class UserServiceTest {
         assertNotNull(response);
         assertEquals("Test User", response.getFullName());
     }
+
+    @Test
+    void resendVerificationEmailByAddress_ShouldReplaceTokenAndSendEmail() {
+        when(userRepository.findByEmail("test@example.com")).thenReturn(Optional.of(sampleUser));
+
+        userService.resendVerificationEmailByAddress(" Test@Example.com ");
+
+        verify(verificationTokenRepository).deleteByUser(sampleUser);
+        verify(verificationTokenRepository).flush();
+        verify(verificationTokenRepository).save(any());
+        verify(emailService).sendVerificationEmail(eq("test@example.com"), anyString());
+    }
 }

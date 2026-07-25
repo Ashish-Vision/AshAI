@@ -69,12 +69,30 @@ public class AuthController {
     }
 
     @PostMapping("/resend-verification")
-    public ResponseEntity<?> resendVerification(@RequestParam("token") String token) {
-        boolean resent = userService.resendVerificationEmail(token);
-        if (resent) {
-            return ResponseEntity.ok(Map.of("message", "A new verification email has been sent"));
+    public ResponseEntity<?> resendVerification(
+            @RequestParam(value = "token", required = false) String token,
+            @Valid @RequestBody(required = false) ResendVerificationRequest request
+    ) {
+        if (token != null && !token.isBlank()) {
+            boolean resent = userService.resendVerificationEmail(token);
+            if (resent) {
+                return ResponseEntity.ok(Map.of("message", "A new verification email has been sent"));
+            }
+            return ResponseEntity.badRequest().body(Map.of(
+                    "message",
+                    "Verification link is invalid or the account is already verified"
+            ));
         }
-        return ResponseEntity.badRequest().body(Map.of("message", "Verification link is invalid or the account is already verified"));
+
+        if (request == null) {
+            return ResponseEntity.badRequest().body(Map.of("message", "Email is required"));
+        }
+
+        userService.resendVerificationEmailByAddress(request.getEmail());
+        return ResponseEntity.ok(Map.of(
+                "message",
+                "If the account is awaiting verification, a new email has been sent"
+        ));
     }
 
     @PostMapping("/forgot-password")

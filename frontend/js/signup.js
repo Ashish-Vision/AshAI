@@ -3,7 +3,8 @@
 import {
     getOAuthLoginUrl,
     getOAuthProviders,
-    registerUser
+    registerUser,
+    resendVerificationEmail
 } from "./api.js";
 
 /* =========================================================
@@ -75,6 +76,13 @@ document.addEventListener("DOMContentLoaded", () => {
     const formMessage = document.getElementById(
         "formMessage"
     );
+
+    const signupView = document.getElementById("signupView");
+    const signupSuccessView = document.getElementById("signupSuccessView");
+    const submittedEmail = document.getElementById("signupSubmittedEmail");
+    const resendButton = document.getElementById("signupResendButton");
+    const resendMessage = document.getElementById("signupResendMessage");
+    let registeredEmail = "";
 
     const googleButton = document.getElementById(
         "signupGoogleButton"
@@ -781,6 +789,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
             try {
                 await registerUser(signupData);
+                registeredEmail = signupData.email;
 
                 passwordInput.value = "";
                 confirmPasswordInput.value = "";
@@ -793,16 +802,12 @@ document.addEventListener("DOMContentLoaded", () => {
                     matchMessage.className = "";
                 }
 
-                showFormMessage(
-                    "Account created successfully. Redirecting to login...",
-                    "success"
-                );
-
-                window.setTimeout(() => {
-                    window.location.replace(
-                        "./login.html"
-                    );
-                }, 1500);
+                if (submittedEmail) submittedEmail.textContent = registeredEmail;
+                if (signupView) signupView.hidden = true;
+                if (signupSuccessView) {
+                    signupSuccessView.hidden = false;
+                    signupSuccessView.focus();
+                }
             } catch (error) {
                 console.error(
                     "Signup request failed:",
@@ -829,6 +834,33 @@ document.addEventListener("DOMContentLoaded", () => {
             }
         }
     );
+
+    resendButton?.addEventListener("click", async () => {
+        if (!registeredEmail) return;
+
+        resendButton.disabled = true;
+        resendButton.classList.add("is-loading");
+        if (resendMessage) {
+            resendMessage.textContent = "";
+            resendMessage.className = "resend-message";
+        }
+
+        try {
+            await resendVerificationEmail(registeredEmail);
+            if (resendMessage) {
+                resendMessage.textContent = "A new verification email has been sent.";
+                resendMessage.classList.add("success");
+            }
+        } catch (error) {
+            if (resendMessage) {
+                resendMessage.textContent = error.message || "Unable to resend the email.";
+                resendMessage.classList.add("error");
+            }
+        } finally {
+            resendButton.disabled = false;
+            resendButton.classList.remove("is-loading");
+        }
+    });
 
     /* =====================================================
        SOCIAL SIGNUP

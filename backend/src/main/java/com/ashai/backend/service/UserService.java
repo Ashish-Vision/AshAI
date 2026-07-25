@@ -141,6 +141,28 @@ public class UserService {
     }
 
     @Transactional
+    public void resendVerificationEmailByAddress(String email) {
+        String normalizedEmail = email.trim().toLowerCase(Locale.ROOT);
+        User user = userRepository.findByEmail(normalizedEmail).orElse(null);
+
+        // Do not reveal whether an account exists or is already verified.
+        if (user == null || Boolean.TRUE.equals(user.getVerified())) {
+            return;
+        }
+
+        verificationTokenRepository.deleteByUser(user);
+        verificationTokenRepository.flush();
+
+        String newToken = UUID.randomUUID().toString();
+        verificationTokenRepository.save(VerificationToken.builder()
+                .token(newToken)
+                .user(user)
+                .expiryDate(LocalDateTime.now().plusHours(24))
+                .build());
+        emailService.sendVerificationEmail(user.getEmail(), newToken);
+    }
+
+    @Transactional
     public void forgotPassword(String email) {
         emailService.requireConfigured();
         String normalizedEmail = email.trim().toLowerCase(Locale.ROOT);

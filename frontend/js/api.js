@@ -311,6 +311,14 @@ export async function registerUser({
     });
 }
 
+export async function resendVerificationEmail(email) {
+    return apiRequest("/auth/resend-verification", {
+        method: "POST",
+        authenticated: false,
+        body: JSON.stringify({ email })
+    });
+}
+
 /**
  * Logs in an existing AshAI user.
  */
