@@ -8,6 +8,8 @@ const API_BASE_URL = "http://localhost:8080/api";
 
 const TOKEN_KEY = "ashai_access_token";
 
+const OAUTH_PROVIDERS = new Set(["google", "github"]);
+
 /* ==========================================================
    TOKEN STORAGE
 ========================================================== */
@@ -60,6 +62,25 @@ export function removeToken() {
  */
 export function hasToken() {
     return Boolean(getToken());
+}
+
+export function getOAuthLoginUrl(provider) {
+    const normalizedProvider = String(provider)
+        .trim()
+        .toLowerCase();
+
+    if (!OAUTH_PROVIDERS.has(normalizedProvider)) {
+        throw new Error("Unsupported OAuth provider.");
+    }
+
+    return `http://localhost:8080/oauth2/authorization/${normalizedProvider}`;
+}
+
+export async function getOAuthProviders() {
+    return apiRequest("/auth/oauth/providers", {
+        method: "GET",
+        authenticated: false
+    });
 }
 
 /* ==========================================================
@@ -238,7 +259,8 @@ export async function apiRequest(
          * An expired or invalid token should not remain stored.
          */
         if (
-            response.status === 401 &&
+            (response.status === 401 ||
+                response.status === 403) &&
             authenticated
         ) {
             removeToken();

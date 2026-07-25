@@ -24,6 +24,9 @@ public class AiService {
     @Value("${gemini.api.key:}")
     private String geminiApiKey;
 
+    @Value("${gemini.api.model:gemini-flash-latest}")
+    private String geminiModel;
+
     private final RestClient restClient;
     private final ChatMessageRepository chatMessageRepository;
     private final UserRepository userRepository;
@@ -42,7 +45,7 @@ public class AiService {
                 : UUID.randomUUID().toString();
 
         String reply;
-        String modelName = request.getModel() != null ? request.getModel() : "AshAI Gemini 2.0";
+        String modelName = request.getModel() != null ? request.getModel() : "AshAI Standard";
 
         // Check if environment variable or configured property has Gemini API key
         String apiKey = (geminiApiKey != null && !geminiApiKey.isBlank()) 
@@ -130,7 +133,9 @@ public class AiService {
     }
 
     private String callGeminiApi(String prompt, String apiKey) {
-        String url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=" + apiKey;
+        String url = "https://generativelanguage.googleapis.com/v1beta/models/"
+                + geminiModel
+                + ":generateContent";
 
         Map<String, Object> requestBody = Map.of(
                 "contents", List.of(
@@ -142,6 +147,7 @@ public class AiService {
         Map<String, Object> response = restClient.post()
                 .uri(url)
                 .header("Content-Type", "application/json")
+                .header("x-goog-api-key", apiKey)
                 .body(requestBody)
                 .retrieve()
                 .body(Map.class);

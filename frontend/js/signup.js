@@ -1,6 +1,10 @@
 "use strict";
 
-import { registerUser } from "./api.js";
+import {
+    getOAuthLoginUrl,
+    getOAuthProviders,
+    registerUser
+} from "./api.js";
 
 /* =========================================================
    SIGNUP PAGE
@@ -827,32 +831,55 @@ document.addEventListener("DOMContentLoaded", () => {
     );
 
     /* =====================================================
-       SOCIAL SIGNUP PLACEHOLDERS
+       SOCIAL SIGNUP
     ===================================================== */
+
+    let oauthProviders = { google: false, github: false };
+
+    const startSocialLogin = (provider) => {
+        if (!oauthProviders[provider]) {
+            showFormMessage(
+                `${provider === "google" ? "Google" : "GitHub"} sign-up is not configured yet. Add the provider credentials to the backend and restart it.`,
+                "error"
+            );
+            return;
+        }
+        window.location.assign(getOAuthLoginUrl(provider));
+    };
 
     if (googleButton) {
         googleButton.addEventListener(
             "click",
-            () => {
-                showFormMessage(
-                    "Google signup will be connected later.",
-                    "success"
-                );
-            }
+            () => startSocialLogin("google")
         );
     }
 
     if (githubButton) {
         githubButton.addEventListener(
             "click",
-            () => {
-                showFormMessage(
-                    "GitHub signup will be connected later.",
-                    "success"
-                );
-            }
+            () => startSocialLogin("github")
         );
     }
+
+    getOAuthProviders()
+        .then((providers) => {
+            oauthProviders = providers;
+            [
+                [googleButton, "google"],
+                [githubButton, "github"]
+            ].forEach(([button, provider]) => {
+                if (!button) return;
+                const available = Boolean(providers[provider]);
+                button.setAttribute("aria-disabled", String(!available));
+                button.title = available
+                    ? `Continue with ${provider}`
+                    : `${provider} sign-up requires backend OAuth credentials`;
+                button.classList.toggle("is-unavailable", !available);
+            });
+        })
+        .catch((error) => {
+            console.warn("Could not check OAuth availability:", error);
+        });
 
     /* =====================================================
        INITIAL STATE

@@ -1,6 +1,9 @@
 package com.ashai.backend.config;
 
 import com.ashai.backend.security.JwtAuthenticationFilter;
+import com.ashai.backend.security.OAuth2LoginFailureHandler;
+import com.ashai.backend.security.OAuth2LoginSuccessHandler;
+import com.ashai.backend.security.OAuth2UserService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -9,10 +12,10 @@ import org.springframework.security.config.annotation.authentication.configurati
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.http.SessionCreationPolicy;
-import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
-import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.authentication.HttpStatusEntryPoint;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
+import org.springframework.http.HttpStatus;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
@@ -25,6 +28,9 @@ import java.util.List;
 public class SecurityConfig {
 
     private final JwtAuthenticationFilter jwtAuthenticationFilter;
+    private final OAuth2LoginSuccessHandler oAuth2LoginSuccessHandler;
+    private final OAuth2LoginFailureHandler oAuth2LoginFailureHandler;
+    private final OAuth2UserService oAuth2UserService;
 
     @Bean
     public SecurityFilterChain securityFilterChain(
@@ -36,22 +42,41 @@ public class SecurityConfig {
                         corsConfigurationSource()
                 ))
                 .csrf(csrf -> csrf.disable())
+                .exceptionHandling(exceptions -> exceptions
+                        .defaultAuthenticationEntryPointFor(
+                                new HttpStatusEntryPoint(HttpStatus.UNAUTHORIZED),
+                                request -> request.getRequestURI().startsWith("/api/")
+                        )
+                        .accessDeniedHandler((request, response, exception) ->
+                                response.sendError(HttpStatus.FORBIDDEN.value())
+                        )
+                )
                 .sessionManagement(session ->
                         session.sessionCreationPolicy(
-                                SessionCreationPolicy.STATELESS
+                                SessionCreationPolicy.IF_REQUIRED
                         )
                 )
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers(
                                 "/api/auth/register",
                                 "/api/auth/login",
+                                "/api/auth/oauth/providers",
                                 "/api/auth/verify-email",
                                 "/api/auth/resend-verification",
                                 "/api/auth/forgot-password",
                                 "/api/auth/reset-password",
-                                "/api/health"
+                                "/api/health",
+                                "/oauth2/**",
+                                "/login/oauth2/**"
                         ).permitAll()
                         .anyRequest().authenticated()
+                )
+                .oauth2Login(oauth2 -> oauth2
+                        .userInfoEndpoint(userInfo ->
+                                userInfo.userService(oAuth2UserService)
+                        )
+                        .successHandler(oAuth2LoginSuccessHandler)
+                        .failureHandler(oAuth2LoginFailureHandler)
                 )
                 .addFilterBefore(
                         jwtAuthenticationFilter,
@@ -101,11 +126,6 @@ public class SecurityConfig {
         );
 
         return source;
-    }
-
-    @Bean
-    public PasswordEncoder passwordEncoder() {
-        return new BCryptPasswordEncoder();
     }
 
     @Bean

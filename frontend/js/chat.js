@@ -1,6 +1,24 @@
 "use strict";
 
 document.addEventListener("DOMContentLoaded", () => {
+    const getAccessToken = () => {
+        return (
+            localStorage.getItem("ashai_access_token") ||
+            sessionStorage.getItem("ashai_access_token")
+        );
+    };
+
+    const redirectToLogin = () => {
+        localStorage.removeItem("ashai_access_token");
+        sessionStorage.removeItem("ashai_access_token");
+        window.location.replace("./login.html");
+    };
+
+    if (!getAccessToken()) {
+        redirectToLogin();
+        return;
+    }
+
     /*
     =========================================================
     ELEMENTS
@@ -252,6 +270,10 @@ document.addEventListener("DOMContentLoaded", () => {
 
     const decorateCodeBlocks = (container) => {
         if (!container) {
+            return;
+        }
+
+        if (localStorage.getItem("ashai_code_formatting") === "false") {
             return;
         }
 
@@ -671,7 +693,7 @@ document.addEventListener("DOMContentLoaded", () => {
             }
 
             const modelSelectorBtn = document.querySelector(".model-selector");
-            const selectedModel = modelSelectorBtn ? modelSelectorBtn.textContent.trim() : "AshAI Gemini 2.0";
+            const selectedModel = modelSelectorBtn ? modelSelectorBtn.textContent.trim() : "AshAI Standard";
 
             const res = await fetch("http://localhost:8080/api/chat", {
                 method: "POST",
@@ -689,6 +711,9 @@ document.addEventListener("DOMContentLoaded", () => {
                 if (data.conversationId) {
                     window.activeConversationId = data.conversationId;
                 }
+            } else if (res.status === 401 || res.status === 403) {
+                redirectToLogin();
+                return;
             } else {
                 responseText = "Sorry, I encountered an issue reaching the backend server. Please ensure you are logged in and the server is running.";
             }
@@ -1028,6 +1053,16 @@ document.addEventListener("DOMContentLoaded", () => {
     const selectedModelLabel = document.getElementById("selectedModelLabel");
 
     if (modelSelectorBtn && modelDropdownMenu) {
+        const preferredModel =
+            localStorage.getItem("ashai_default_model") ||
+            "AshAI Standard";
+        const preferredOption = modelDropdownMenu.querySelector(
+            `.model-option-btn[data-model="${CSS.escape(preferredModel)}"]`
+        );
+        if (preferredOption && selectedModelLabel) {
+            selectedModelLabel.textContent = preferredModel;
+        }
+
         modelSelectorBtn.addEventListener("click", (e) => {
             e.stopPropagation();
             modelDropdownMenu.hidden = !modelDropdownMenu.hidden;
@@ -1043,6 +1078,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 e.stopPropagation();
                 const modelName = btn.getAttribute("data-model");
                 if (selectedModelLabel) selectedModelLabel.textContent = modelName;
+                localStorage.setItem("ashai_default_model", modelName);
                 modelDropdownMenu.hidden = true;
             });
         });

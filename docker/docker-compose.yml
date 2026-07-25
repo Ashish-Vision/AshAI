@@ -25,6 +25,11 @@ services:
       SPRING_DATASOURCE_USERNAME: ashai_user
       SPRING_DATASOURCE_PASSWORD: ashai_password
       GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-missing-google-client-id}
+      GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:-missing-google-client-secret}
+      GITHUB_CLIENT_ID: ${GITHUB_CLIENT_ID:-missing-github-client-id}
+      GITHUB_CLIENT_SECRET: ${GITHUB_CLIENT_SECRET:-missing-github-client-secret}
+      FRONTEND_URL: ${FRONTEND_URL:-http://localhost:5500}
     depends_on:
       - postgres
 

@@ -4,6 +4,7 @@ import com.ashai.backend.dto.*;
 import com.ashai.backend.service.UserService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -16,6 +17,26 @@ import java.util.Map;
 public class AuthController {
 
     private final UserService userService;
+
+    @Value("${spring.security.oauth2.client.registration.google.client-id:}")
+    private String googleClientId;
+
+    @Value("${spring.security.oauth2.client.registration.github.client-id:}")
+    private String githubClientId;
+
+    @GetMapping("/oauth/providers")
+    public ResponseEntity<Map<String, Boolean>> oauthProviders() {
+        return ResponseEntity.ok(Map.of(
+                "google", isConfigured(googleClientId),
+                "github", isConfigured(githubClientId)
+        ));
+    }
+
+    private boolean isConfigured(String clientId) {
+        return clientId != null
+                && !clientId.isBlank()
+                && !clientId.startsWith("missing-");
+    }
 
     @PostMapping("/register")
     public ResponseEntity<UserResponse> register(

@@ -1,6 +1,8 @@
 "use strict";
 
 import {
+    getOAuthLoginUrl,
+    getOAuthProviders,
     hasToken,
     loginUser
 } from "./api.js";
@@ -28,6 +30,11 @@ const buttonText =
 
 const socialButtons =
     document.querySelectorAll(".social-button");
+
+let oauthProviders = {
+    google: false,
+    github: false
+};
 
 /* ==========================================================
    PAGE CONFIGURATION
@@ -358,12 +365,16 @@ function handleSocialLogin(event) {
         return;
     }
 
-    const providerName =
-        provider.charAt(0).toUpperCase() +
-        provider.slice(1);
+    if (!oauthProviders[provider]) {
+        showFormMessage(
+            `${provider === "google" ? "Google" : "GitHub"} sign-in is not configured yet. Add the provider client ID and secret to the backend environment, then restart it.`
+        );
+        return;
+    }
 
-    showFormMessage(
-        `${providerName} authentication is not available yet.`
+    setLoadingState(true);
+    window.location.assign(
+        getOAuthLoginUrl(provider)
     );
 }
 
@@ -375,6 +386,24 @@ function handleExistingSession() {
     if (hasToken()) {
         redirectToDashboard();
     }
+}
+
+async function initializeSocialLogin() {
+    try {
+        oauthProviders = await getOAuthProviders();
+    } catch (error) {
+        console.warn("Could not check OAuth availability:", error);
+    }
+
+    socialButtons.forEach((button) => {
+        const provider = button.dataset.provider;
+        const available = Boolean(oauthProviders[provider]);
+        button.setAttribute("aria-disabled", String(!available));
+        button.title = available
+            ? `Continue with ${provider}`
+            : `${provider} sign-in requires backend OAuth credentials`;
+        button.classList.toggle("is-unavailable", !available);
+    });
 }
 
 /* ==========================================================
@@ -429,3 +458,4 @@ socialButtons.forEach((button) => {
 ========================================================== */
 
 handleExistingSession();
+initializeSocialLogin();

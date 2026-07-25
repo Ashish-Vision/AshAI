@@ -30,3 +30,23 @@ cd AshAI
 docker-compose -f docker/docker-compose.yml up --build
 ```
 Access the application at `http://localhost:5500`.
+
+## Google and GitHub Login
+
+Set these environment variables before starting the backend:
+
+```bash
+export GOOGLE_CLIENT_ID="your-google-client-id"
+export GOOGLE_CLIENT_SECRET="your-google-client-secret"
+export GITHUB_CLIENT_ID="your-github-client-id"
+export GITHUB_CLIENT_SECRET="your-github-client-secret"
+export FRONTEND_URL="http://localhost:5500"
+```
+
+Register these authorization callback URLs with the providers:
+
+- Google: `http://localhost:8080/login/oauth2/code/google`
+- GitHub: `http://localhost:8080/login/oauth2/code/github`
+
+For GitHub, set the homepage URL to `http://localhost:5500`. OAuth secrets must
+remain in environment variables and must never be committed.
