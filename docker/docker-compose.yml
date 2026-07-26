@@ -4,6 +4,12 @@ services:
     container_name: ashai-ollama
     volumes:
       - ollama_data:/root/.ollama
+    healthcheck:
+      test: ["CMD", "ollama", "list"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 10s
 
   postgres:
     image: postgres:16-alpine
@@ -14,6 +20,12 @@ services:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-change-this-database-password}
     volumes:
       - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ashai_user -d ashai_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 10s
 
   backend:
     build:
@@ -37,8 +49,16 @@ services:
       OLLAMA_PRO_MODEL: gemma3:4b
       OLLAMA_CODE_MODEL: qwen2.5-coder:7b
     depends_on:
-      - ollama
-      - postgres
+      ollama:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q --spider http://localhost:8080/api/health || exit 1"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 20s
 
   frontend:
     build:
@@ -48,7 +68,8 @@ services:
     ports:
       - "5500:80"
     depends_on:
-      - backend
+      backend:
+        condition: service_healthy
 
 volumes:
   ollama_data:

@@ -1,7 +1,7 @@
 "use strict";
 
 /*
- * Public runtime configuration.
- * This backend URL is intentionally client-visible; never put secrets here.
+ * Keep the frontend and API on the same origin. In local Docker mode,
+ * Nginx forwards /api and OAuth routes to the backend container.
  */
-window.ASHAI_API_ORIGIN = "https://ashai-omap.onrender.com";
+window.ASHAI_API_ORIGIN = window.location.origin;
