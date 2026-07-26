@@ -788,7 +788,7 @@ document.addEventListener("DOMContentLoaded", () => {
             setSignupLoading(true);
 
             try {
-                await registerUser(signupData);
+                const registeredUser = await registerUser(signupData);
                 registeredEmail = signupData.email;
 
                 passwordInput.value = "";
@@ -802,11 +802,21 @@ document.addEventListener("DOMContentLoaded", () => {
                     matchMessage.className = "";
                 }
 
-                if (submittedEmail) submittedEmail.textContent = registeredEmail;
-                if (signupView) signupView.hidden = true;
-                if (signupSuccessView) {
-                    signupSuccessView.hidden = false;
-                    signupSuccessView.focus();
+                if (registeredUser?.verified) {
+                    showFormMessage(
+                        "Personal account created. Redirecting to sign in...",
+                        "success"
+                    );
+                    window.setTimeout(() => {
+                        window.location.replace("./login.html");
+                    }, 900);
+                } else {
+                    if (submittedEmail) submittedEmail.textContent = registeredEmail;
+                    if (signupView) signupView.hidden = true;
+                    if (signupSuccessView) {
+                        signupSuccessView.hidden = false;
+                        signupSuccessView.focus();
+                    }
                 }
             } catch (error) {
                 console.error(

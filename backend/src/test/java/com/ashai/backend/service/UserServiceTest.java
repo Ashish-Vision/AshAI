@@ -2,8 +2,10 @@ package com.ashai.backend.service;
 
 import com.ashai.backend.dto.ChatRequest;
 import com.ashai.backend.dto.ChatResponse;
+import com.ashai.backend.dto.LoginRequest;
 import com.ashai.backend.dto.RegisterRequest;
 import com.ashai.backend.dto.UserResponse;
+import com.ashai.backend.exception.InvalidCredentialsException;
 import com.ashai.backend.model.User;
 import com.ashai.backend.repository.PasswordResetTokenRepository;
 import com.ashai.backend.repository.UserRepository;
@@ -16,6 +18,7 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.test.util.ReflectionTestUtils;
 
 import java.util.Optional;
 
@@ -99,5 +102,48 @@ class UserServiceTest {
         verify(verificationTokenRepository).flush();
         verify(verificationTokenRepository).save(any());
         verify(emailService).sendVerificationEmail(eq("test@example.com"), anyString());
+    }
+
+    @Test
+    void register_InPersonalMode_ShouldActivateOwnerWithoutSendingEmail() {
+        ReflectionTestUtils.setField(userService, "personalModeEnabled", true);
+        ReflectionTestUtils.setField(userService, "personalEmail", "owner@example.com");
+
+        RegisterRequest request = new RegisterRequest();
+        request.setFullName("Owner");
+        request.setEmail("OWNER@example.com");
+        request.setPassword("password123");
+
+        when(userRepository.existsByEmail("owner@example.com")).thenReturn(false);
+        when(passwordEncoder.encode("password123")).thenReturn("encoded_password");
+        when(userRepository.save(any(User.class)))
+                .thenAnswer(invocation -> invocation.getArgument(0));
+
+        UserResponse response = userService.register(request);
+
+        assertTrue(response.getVerified());
+        verifyNoInteractions(verificationTokenRepository);
+        verifyNoInteractions(emailService);
+    }
+
+    @Test
+    void login_InPersonalMode_ShouldRejectAnotherEmailBeforeLookup() {
+        ReflectionTestUtils.setField(userService, "personalModeEnabled", true);
+        ReflectionTestUtils.setField(userService, "personalEmail", "owner@example.com");
+
+        LoginRequest request = new LoginRequest();
+        request.setEmail("someone@example.com");
+        request.setPassword("password123");
+
+        InvalidCredentialsException exception = assertThrows(
+                InvalidCredentialsException.class,
+                () -> userService.login(request)
+        );
+
+        assertEquals(
+                "This private AshAI workspace only allows its configured owner",
+                exception.getMessage()
+        );
+        verifyNoInteractions(userRepository);
     }
 }

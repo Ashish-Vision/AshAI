@@ -4,12 +4,9 @@
    API CONFIGURATION
 ========================================================== */
 
-const LOCAL_HOSTS = new Set(["localhost", "127.0.0.1"]);
 export const BACKEND_ORIGIN =
     window.ASHAI_API_ORIGIN ||
-    (LOCAL_HOSTS.has(window.location.hostname)
-        ? `http://${window.location.hostname}:8080`
-        : window.location.origin);
+    window.location.origin;
 export const API_BASE_URL = `${BACKEND_ORIGIN}/api`;
 
 const TOKEN_KEY = "ashai_access_token";

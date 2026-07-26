@@ -37,6 +37,21 @@ public class AiService {
     @Value("${gemini.google-search.enabled:true}")
     private boolean googleSearchEnabled;
 
+    @Value("${ai.provider:ollama}")
+    private String aiProvider;
+
+    @Value("${ollama.base-url:http://localhost:11434}")
+    private String ollamaBaseUrl;
+
+    @Value("${ollama.standard-model:gemma3:4b}")
+    private String ollamaStandardModel;
+
+    @Value("${ollama.pro-model:gemma3:4b}")
+    private String ollamaProModel;
+
+    @Value("${ollama.code-model:qwen2.5-coder:7b}")
+    private String ollamaCodeModel;
+
     private final RestClient restClient;
     private final ChatMessageRepository chatMessageRepository;
     private final UserRepository userRepository;
@@ -63,15 +78,15 @@ public class AiService {
                 ? geminiApiKey 
                 : System.getenv("GEMINI_API_KEY");
 
-        if (apiKey != null && !apiKey.isBlank()) {
+        if ("ollama".equalsIgnoreCase(aiProvider)) {
             try {
-                reply = callGeminiApi(prompt, apiKey, mode, request);
+                reply = callOllamaApi(prompt, mode, request);
             } catch (Exception e) {
-                log.error("Failed to fetch response from Gemini API, falling back to intelligent assistant engine: {}", e.getMessage());
-                reply = generateAssistantFallback(prompt);
+                log.warn("Ollama is unavailable: {}", e.getMessage());
+                reply = callGeminiOrFallback(prompt, apiKey, mode, request);
             }
         } else {
-            reply = generateAssistantFallback(prompt);
+            reply = callGeminiOrFallback(prompt, apiKey, mode, request);
         }
 
         User user = userRepository.findByEmail(userEmail).orElse(null);
@@ -105,6 +120,83 @@ public class AiService {
                 .model(modelName)
                 .timestamp(LocalDateTime.now())
                 .build();
+    }
+
+    private String callGeminiOrFallback(
+            String prompt,
+            String apiKey,
+            ModeConfig mode,
+            ChatRequest request
+    ) {
+        if (apiKey == null || apiKey.isBlank()) {
+            return generateAssistantFallback(prompt);
+        }
+        try {
+            return callGeminiApi(prompt, apiKey, mode, request);
+        } catch (Exception e) {
+            log.error("Gemini is unavailable; using built-in fallback: {}", e.getMessage());
+            return generateAssistantFallback(prompt);
+        }
+    }
+
+    @SuppressWarnings("unchecked")
+    private String callOllamaApi(String prompt, ModeConfig mode, ChatRequest request) {
+        Map<String, Object> userMessage = new java.util.LinkedHashMap<>();
+        userMessage.put("role", "user");
+        userMessage.put("content", prompt);
+        if (request.getAttachmentData() != null
+                && !request.getAttachmentData().isBlank()
+                && request.getAttachmentMimeType() != null
+                && request.getAttachmentMimeType().startsWith("image/")) {
+            userMessage.put("images", List.of(request.getAttachmentData()));
+        }
+
+        Map<String, Object> requestBody = Map.of(
+                "model", resolveOllamaModel(mode.label()),
+                "stream", false,
+                "messages", List.of(
+                        Map.of("role", "system", "content", mode.systemInstruction()),
+                        userMessage
+                ),
+                "options", Map.of(
+                        "temperature", mode.temperature(),
+                        "num_predict", mode.maxOutputTokens()
+                )
+        );
+
+        Map<String, Object> response = restClient.post()
+                .uri(normalizeOllamaUrl() + "/api/chat")
+                .header("Content-Type", "application/json")
+                .body(requestBody)
+                .retrieve()
+                .body(Map.class);
+
+        if (response != null && response.get("message") instanceof Map<?, ?> message) {
+            Object content = message.get("content");
+            if (content != null && !content.toString().isBlank()) {
+                return content.toString();
+            }
+        }
+        throw new IllegalStateException("Ollama returned an empty response");
+    }
+
+    private String resolveOllamaModel(String label) {
+        if (label.contains("Code")) {
+            return ollamaCodeModel;
+        }
+        if (label.contains("Pro")) {
+            return ollamaProModel;
+        }
+        return ollamaStandardModel;
+    }
+
+    private String normalizeOllamaUrl() {
+        String configured = ollamaBaseUrl == null || ollamaBaseUrl.isBlank()
+                ? "http://localhost:11434"
+                : ollamaBaseUrl.trim();
+        return configured.endsWith("/")
+                ? configured.substring(0, configured.length() - 1)
+                : configured;
     }
 
     @Transactional(readOnly = true)

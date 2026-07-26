@@ -11,6 +11,7 @@ import com.ashai.backend.repository.UserRepository;
 import com.ashai.backend.repository.VerificationTokenRepository;
 import com.ashai.backend.security.JwtService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -30,6 +31,12 @@ public class UserService {
     private final JwtService jwtService;
     private final EmailService emailService;
 
+    @Value("${app.personal-mode.enabled:true}")
+    private boolean personalModeEnabled;
+
+    @Value("${app.personal-mode.email:}")
+    private String personalEmail;
+
     @Transactional
     public UserResponse register(RegisterRequest request) {
 
@@ -37,6 +44,8 @@ public class UserService {
                 .getEmail()
                 .trim()
                 .toLowerCase(Locale.ROOT);
+
+        requirePersonalAccess(normalizedEmail);
 
         if (userRepository.existsByEmail(normalizedEmail)) {
             throw new EmailAlreadyExistsException(
@@ -49,29 +58,33 @@ public class UserService {
         user.setFullName(request.getFullName().trim());
         user.setEmail(normalizedEmail);
         user.setPassword(passwordEncoder.encode(request.getPassword()));
+        user.setVerified(personalModeEnabled);
 
         User savedUser = userRepository.save(user);
 
-        // Generate verification token and send email
-        String token = UUID.randomUUID().toString();
-        VerificationToken verificationToken = VerificationToken.builder()
-                .token(token)
-                .user(savedUser)
-                .expiryDate(LocalDateTime.now().plusHours(24))
-                .build();
-        verificationTokenRepository.save(verificationToken);
-        emailService.sendVerificationEmail(savedUser.getEmail(), token);
+        if (!personalModeEnabled) {
+            String token = UUID.randomUUID().toString();
+            VerificationToken verificationToken = VerificationToken.builder()
+                    .token(token)
+                    .user(savedUser)
+                    .expiryDate(LocalDateTime.now().plusHours(24))
+                    .build();
+            verificationTokenRepository.save(verificationToken);
+            emailService.sendVerificationEmail(savedUser.getEmail(), token);
+        }
 
         return UserResponse.from(savedUser);
     }
 
-    @Transactional(readOnly = true)
+    @Transactional
     public LoginResponse login(LoginRequest request) {
 
         String normalizedEmail = request
                 .getEmail()
                 .trim()
                 .toLowerCase(Locale.ROOT);
+
+        requirePersonalAccess(normalizedEmail);
 
         User user = userRepository.findByEmail(normalizedEmail)
                 .orElseThrow(InvalidCredentialsException::new);
@@ -85,7 +98,10 @@ public class UserService {
             throw new InvalidCredentialsException();
         }
 
-        if (!Boolean.TRUE.equals(user.getVerified())) {
+        if (personalModeEnabled && !Boolean.TRUE.equals(user.getVerified())) {
+            user.setVerified(true);
+            userRepository.save(user);
+        } else if (!Boolean.TRUE.equals(user.getVerified())) {
             throw new InvalidCredentialsException(
                     "Verify your email address before signing in"
             );
@@ -234,5 +250,21 @@ public class UserService {
 
         user.setPassword(passwordEncoder.encode(request.getNewPassword()));
         userRepository.save(user);
+    }
+
+    private void requirePersonalAccess(String normalizedEmail) {
+        if (!personalModeEnabled) {
+            return;
+        }
+
+        String ownerEmail = personalEmail == null
+                ? ""
+                : personalEmail.trim().toLowerCase(Locale.ROOT);
+
+        if (ownerEmail.isBlank() || !ownerEmail.equals(normalizedEmail)) {
+            throw new InvalidCredentialsException(
+                    "This private AshAI workspace only allows its configured owner"
+            );
+        }
     }
 }

@@ -1,6 +1,7 @@
 package com.ashai.backend.security;
 
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.oauth2.client.userinfo.DefaultOAuth2UserService;
 import org.springframework.security.oauth2.client.userinfo.OAuth2UserRequest;
 import org.springframework.security.oauth2.core.OAuth2AuthenticationException;
@@ -13,6 +14,7 @@ import org.springframework.web.client.RestClient;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Locale;
 
 @Service
 public class OAuth2UserService
@@ -20,6 +22,12 @@ public class OAuth2UserService
 
     private final DefaultOAuth2UserService delegate = new DefaultOAuth2UserService();
     private final RestClient restClient = RestClient.create();
+
+    @Value("${app.personal-mode.enabled:true}")
+    private boolean personalModeEnabled;
+
+    @Value("${app.personal-mode.email:}")
+    private String personalEmail;
 
     @Override
     public OAuth2User loadUser(OAuth2UserRequest userRequest)
@@ -44,6 +52,17 @@ public class OAuth2UserService
         if (isBlank(attributes.get("email"))) {
             throw unverifiedEmail();
         }
+
+        String normalizedEmail = String.valueOf(attributes.get("email"))
+                .trim()
+                .toLowerCase(Locale.ROOT);
+        if (personalModeEnabled && !isPersonalEmail(normalizedEmail)) {
+            throw new OAuth2AuthenticationException(
+                    new OAuth2Error("personal_access_denied"),
+                    "This private AshAI workspace only allows its configured owner"
+            );
+        }
+        attributes.put("email", normalizedEmail);
 
         String userNameAttribute = userRequest.getClientRegistration()
                 .getProviderDetails()
@@ -83,6 +102,12 @@ public class OAuth2UserService
 
     private boolean isBlank(Object value) {
         return value == null || String.valueOf(value).isBlank();
+    }
+
+    private boolean isPersonalEmail(String email) {
+        return personalEmail != null
+                && !personalEmail.isBlank()
+                && personalEmail.trim().equalsIgnoreCase(email);
     }
 
     private OAuth2AuthenticationException unverifiedEmail() {
